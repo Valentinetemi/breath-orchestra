@@ -37,6 +37,7 @@
 
     _voice(kind) {
       if (kind === 'piano') return this._pianoVoice();
+      if (kind === 'drums') return this._drumVoice();
       const gain = new ToneRef.Gain(0);
       const envFilter = new ToneRef.Filter(800, 'lowpass');
       let source;
@@ -109,6 +110,74 @@
       };
     }
 
+
+    _drumVoice() {
+      const gain = new ToneRef.Gain(0.85);
+      const dry = new ToneRef.Gain(0.72);
+      const wet = new ToneRef.Gain(0.2);
+      dry.connect(this.master);
+      wet.connect(this.reverb);
+      gain.connect(dry);
+      gain.connect(wet);
+
+      const kick = new ToneRef.MembraneSynth({
+        pitchDecay: 0.05,
+        octaves: 5,
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.001, decay: 0.42, sustain: 0, release: 0.18 },
+      });
+      const snare = new ToneRef.NoiseSynth({
+        noise: { type: 'white' },
+        envelope: { attack: 0.001, decay: 0.16, sustain: 0, release: 0.08 },
+      });
+      const snareBody = new ToneRef.MembraneSynth({
+        pitchDecay: 0.03,
+        octaves: 3,
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.06 },
+      });
+      const hat = new ToneRef.MetalSynth({
+        frequency: 420,
+        envelope: { attack: 0.001, decay: 0.07, release: 0.04 },
+        harmonicity: 5.1,
+        modulationIndex: 32,
+        resonance: 4000,
+        octaves: 1.5,
+      });
+      const ride = new ToneRef.MetalSynth({
+        frequency: 280,
+        envelope: { attack: 0.001, decay: 0.55, release: 0.3 },
+        harmonicity: 4.2,
+        modulationIndex: 16,
+        resonance: 2800,
+        octaves: 1.2,
+      });
+      const crash = new ToneRef.MetalSynth({
+        frequency: 320,
+        envelope: { attack: 0.001, decay: 1.1, release: 0.6 },
+        harmonicity: 5.8,
+        modulationIndex: 24,
+        resonance: 3500,
+        octaves: 1.8,
+      });
+      const tom = new ToneRef.MembraneSynth({
+        pitchDecay: 0.06,
+        octaves: 3,
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.001, decay: 0.22, sustain: 0, release: 0.1 },
+      });
+
+      [kick, snare, snareBody, hat, ride, crash, tom].forEach((node) => node.connect(gain));
+      return {
+        kind: 'drums',
+        gain,
+        envFilter: null,
+        source: { kick, snare, snareBody, hat, ride, crash, tom, dry, wet },
+        notes: [],
+        hits: [],
+      };
+    }
+
     _setNotes(voice, beat) {
       if (!voice || voice.kind === 'piano' || voice.kind === 'drums') return;
       const notes = voice.notes || [];
@@ -155,13 +224,65 @@
       return chord;
     }
 
+
+    _triggerDrum(voice, hit) {
+      const kit = voice.source || {};
+      const vel = hit.velocity;
+      const now = typeof ToneRef.now === 'function' ? ToneRef.now() : undefined;
+      if (hit.voice === 'kick' && kit.kick && kit.kick.triggerAttackRelease) {
+        kit.kick.triggerAttackRelease('C1', '8n', now, vel);
+      } else if (hit.voice === 'snare') {
+        if (kit.snare && kit.snare.triggerAttackRelease) kit.snare.triggerAttackRelease('16n', now, vel);
+        if (kit.snareBody && kit.snareBody.triggerAttackRelease) {
+          kit.snareBody.triggerAttackRelease('G2', '16n', now, vel * 0.7);
+        }
+      } else if (hit.voice === 'hat' && kit.hat && kit.hat.triggerAttackRelease) {
+        kit.hat.triggerAttackRelease('32n', now, vel);
+      } else if (hit.voice === 'ride' && kit.ride && kit.ride.triggerAttackRelease) {
+        kit.ride.triggerAttackRelease('8n', now, vel);
+      } else if (hit.voice === 'crash' && kit.crash && kit.crash.triggerAttackRelease) {
+        kit.crash.triggerAttackRelease('2n', now, vel);
+      } else if (hit.voice === 'tom' && kit.tom && kit.tom.triggerAttackRelease) {
+        const pitch = ['G2', 'C3', 'F3', 'A3'][hit.step % 4] || 'C3';
+        kit.tom.triggerAttackRelease(pitch, '8n', now, vel);
+      }
+    }
+
+    _advanceDrums(voice, extras = {}, id = 'live') {
+      const hits = [];
+      if (!voice || voice.kind !== 'drums') return hits;
+      if (extras.muted) {
+        voice.gain.gain.rampTo(0, 0.04);
+        voice.hits = [];
+        return hits;
+      }
+      voice.gain.gain.rampTo(0.85, 0.04);
+      if (!Number.isFinite(extras.nowMs) || !Number.isFinite(extras.transportStart)) {
+        voice.hits = [];
+        return hits;
+      }
+      const step = lib.stepAt(extras.nowMs, extras.transportStart);
+      const previous = this._lastStep.get(id);
+      if (previous === step) return voice.hits || [];
+      this._lastStep.set(id, step);
+      const pattern = lib.hitsForStep(step, {
+        density: extras.density,
+        breath: extras.env,
+        phase: extras.phase,
+        pulseAccent: extras.pulseAccent,
+      });
+      pattern.forEach((hit) => this._triggerDrum(voice, hit));
+      voice.hits = pattern;
+      return pattern;
+    }
+
     setLiveInstrument(kind) {
       this.currentKind = kind;
       if (!this.started) return;
       if (this.live) this._disposeVoice(this.live);
       this.live = this._voice(kind);
       if (kind === 'piano') this._setPiano(this.live, 0, 0);
-      else this._setNotes(this.live, 0);
+      else if (kind !== 'drums') this._setNotes(this.live, 0);
     }
 
     setLiveEnvelope(env, totalBeats, extras = {}) {
@@ -169,6 +290,10 @@
       if (this.live.kind === 'piano') {
         const notes = this._setPiano(this.live, env, totalBeats);
         return { kind: 'piano', notes, hits: [] };
+      }
+      if (this.live.kind === 'drums') {
+        const hits = this._advanceDrums(this.live, { ...extras, env, muted: false }, 'live');
+        return { kind: 'drums', notes: [], hits };
       }
       const v = Math.min(1, Math.max(0, env));
       this.live.gain.gain.rampTo(v * 0.7, 0.04);
@@ -196,6 +321,10 @@
         }
         const notes = this._setPiano(entry.voice, env, totalBeats);
         return { kind: 'piano', notes, hits: [] };
+      }
+      if (entry.voice.kind === 'drums') {
+        const hits = this._advanceDrums(entry.voice, { ..._extras, env, muted }, id);
+        return { kind: 'drums', notes: [], hits };
       }
       const v = muted ? 0 : Math.min(1, Math.max(0, env));
       entry.voice.gain.gain.rampTo(v * 0.62, 0.04);
