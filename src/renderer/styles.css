@@ -58,6 +58,8 @@
   --cello: #c4784a;
   --flute: #7eb8b0;
   --violin: #d48a96;
+  --piano: #e2c9a0;
+  --drums: #c45a4a;
   --velvet: #5a1220;
   --velvet-deep: #2a0810;
   --wood-1: #6a3a1c;
@@ -201,35 +203,54 @@ button:focus-visible, input:focus-visible {
   opacity: calc(0.35 + var(--light-warmth) * 0.65);
 }
 
-.players, .live-slot {
+.ensemble {
   position: absolute;
-  left: 8%;
-  right: 8%;
-  top: 28%;
-  height: 50%;
+  left: 16%;
+  right: 16%;
+  top: 24%;
+  height: 56%;
   z-index: 5;
+  pointer-events: none;
+}
+.ensemble .riser {
+  position: absolute;
+  left: 36%;
+  top: 4%;
+  width: 30%;
+  height: 24%;
+  background: linear-gradient(#5a3a22, #2a160c);
+  clip-path: polygon(10% 0, 90% 0, 100% 100%, 0 100%);
+  box-shadow: 0 16px 24px #0008, inset 0 8px 16px #0005;
+  transform: perspective(420px) rotateX(28deg);
+  transform-origin: top center;
+  filter: brightness(calc(0.8 + var(--light-warmth) * 0.4));
+}
+.players {
+  position: absolute;
+  inset: 0;
   pointer-events: none;
 }
 .player {
   position: absolute;
-  width: 18%;
+  width: 16%;
   transform: translate(-50%, -20%) scale(var(--player-scale, 1));
   color: var(--player-color, var(--gold));
   pointer-events: auto;
   filter: drop-shadow(0 18px 16px #0008);
-  transition: opacity 0.4s ease, filter 0.3s ease, transform 0.5s ease;
+  transition: opacity 0.4s ease, filter 0.3s ease, left 0.6s ease, top 0.6s ease, transform 0.5s ease;
 }
 .player.is-live {
-  width: 22%;
-  z-index: 7;
-  left: var(--spotlight-x);
-  top: 28%;
+  width: 18%;
 }
 .player.is-muted { opacity: 0.28; filter: grayscale(0.5) drop-shadow(0 10px 8px #0006); }
 .player.is-cello { --player-color: var(--cello); }
-.player.is-flute { --player-color: var(--flute); width: 28%; }
+.player.is-flute { --player-color: var(--flute); width: 24%; }
 .player.is-violin { --player-color: var(--violin); }
-.player.is-live.is-flute { width: 32%; }
+.player.is-piano { --player-color: var(--piano); width: 30%; }
+.player.is-drums { --player-color: var(--drums); width: 24%; }
+.player.is-live.is-flute { width: 26%; }
+.player.is-live.is-piano { width: 34%; }
+.player.is-live.is-drums { width: 26%; }
 .player-inner { text-align: center; }
 .player .inst {
   width: 100%;
@@ -491,11 +512,14 @@ button:focus-visible, input:focus-visible {
 .playbill {
   position: absolute;
   left: 50%;
-  bottom: 26px;
+  bottom: 22px;
   transform: translateX(-50%);
   display: flex;
-  gap: 10px;
-  padding: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px;
+  max-width: min(920px, 92vw);
   background: var(--hud-bg);
   border: 1px solid #e8c87a33;
   border-radius: 18px;
@@ -507,17 +531,29 @@ button:focus-visible, input:focus-visible {
   border: 1px solid transparent;
   color: var(--cream);
   border-radius: 12px;
-  padding: 8px 16px 8px 12px;
+  padding: 7px 10px 7px 12px;
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 120px;
+  min-width: 0;
 }
 .pick svg { width: 28px; height: 40px; }
 .pick.is-flute svg { width: 52px; height: 20px; }
 .pick[data-kind="cello"] { color: var(--cello); }
 .pick[data-kind="flute"] { color: var(--flute); }
 .pick[data-kind="violin"] { color: var(--violin); }
+.pick[data-kind="piano"] { color: var(--piano); }
+.pick[data-kind="drums"] { color: var(--drums); }
+.pick kbd {
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  font-weight: 600;
+  opacity: 0.55;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 5px;
+  line-height: 1.4;
+}
 .pick.is-selected {
   border-color: currentColor;
   background: color-mix(in srgb, currentColor 16%, transparent);
