@@ -40,7 +40,11 @@ function createWindow() {
 
   win.once('ready-to-show', () => win.show());
   if (bindSmartSpectraIpc) bindSmartSpectraIpc(win);
-  win.loadFile(path.join(__dirname, '../renderer/index.html'));
+  const query = {};
+  if (process.argv.includes('--sim')) query.sim = '1';
+  const calArg = process.argv.find((arg) => arg.startsWith('--calMs='));
+  if (calArg) query.calMs = calArg.slice('--calMs='.length);
+  win.loadFile(path.join(__dirname, '../renderer/index.html'), { query });
 }
 
 app.whenReady().then(() => {

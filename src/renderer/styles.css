@@ -612,3 +612,20 @@ h1 { font-size: 3rem; line-height: 1; }
     transition: none !important;
   }
 }
+
+.boot-error {
+  position: absolute;
+  z-index: 50;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  max-width: min(520px, 90vw);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #e8a07a;
+  background: #2a1210ee;
+  color: #f3ead8;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  box-shadow: 0 12px 30px #000a;
+}
