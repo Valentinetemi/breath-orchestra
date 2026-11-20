@@ -2,6 +2,7 @@
 
 const { spawn } = require('child_process');
 const net = require('net');
+const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
@@ -110,6 +111,15 @@ class Cdp {
 
   close() {
     if (this.ws) this.ws.close();
+  }
+
+  async screenshot(filePath) {
+    const result = await this.send('Page.captureScreenshot', {
+      format: 'png',
+      fromSurface: true,
+    });
+    if (!result || !result.data) throw new Error('no screenshot data');
+    fs.writeFileSync(filePath, Buffer.from(result.data, 'base64'));
   }
 
   fatalErrors() {
@@ -292,11 +302,63 @@ async function runSimFlag(port) {
       return s.calibrateHidden && !s.hudHidden && s.hallOpen;
     }, 12000, 'start:sim HUD');
     assertNoFatal(cdp, 'start:sim');
-    return await snapshot(cdp);
+    const simSnap = await snapshot(cdp);
+    const ensemble = await exerciseEnsemble(cdp);
+    return { ...simSnap, ensemble };
   } finally {
     cdp.close();
     await stopApp(child);
   }
+}
+
+async function exerciseEnsemble(cdp) {
+  const kinds = await cdp.eval(`[...document.querySelectorAll('.pick')].map((btn) => btn.dataset.kind)`);
+  const expected = ['cello', 'flute', 'violin', 'piano', 'drums'];
+  if (JSON.stringify(kinds) !== JSON.stringify(expected)) {
+    throw new Error(`playbill was ${JSON.stringify(kinds)}`);
+  }
+  const hook = await cdp.eval(`typeof window.__breathOrchestraTest`);
+  if (hook !== 'object') throw new Error('test hook missing');
+
+  const seated = await cdp.eval(`(() => {
+    const api = window.__breathOrchestraTest;
+    ['cello', 'violin', 'flute', 'piano', 'drums', 'cello'].forEach((kind) => api.seat(kind));
+    api.setInstrument('cello');
+    return api.snapshot();
+  })()`);
+  if (!seated.kinds || seated.kinds.length < 5) {
+    throw new Error(`expected several seated players, got ${JSON.stringify(seated)}`);
+  }
+  const unique = new Set(seated.kinds);
+  for (const kind of expected) {
+    if (!unique.has(kind)) throw new Error(`missing seated ${kind}`);
+  }
+
+  const graphs = {};
+  for (const kind of expected) {
+    const graph = await cdp.eval(`window.__breathOrchestraTest.audioGraph(${JSON.stringify(kind)})`);
+    if (!graph || graph.kind !== kind || !graph.hasGain || !graph.nodes || !graph.nodes.length) {
+      throw new Error(`audio graph failed for ${kind}: ${JSON.stringify(graph)}`);
+    }
+    graphs[kind] = graph.nodes;
+  }
+
+  await cdp.eval(`(() => {
+    const hud = document.getElementById('hud');
+    if (hud) hud.hidden = true;
+    const err = document.getElementById('boot-error');
+    if (err) err.hidden = true;
+    document.documentElement.style.setProperty('--light-warmth', '0.72');
+    document.documentElement.style.setProperty('--live-env', '0.7');
+    document.querySelectorAll('.player').forEach((el) => {
+      el.style.setProperty('--env', '0.7');
+      el.classList.add('is-playing');
+    });
+  })()`);
+  const shot = path.join('/workspace', 'breath-orchestra-ensemble.png');
+  await sleep(400);
+  await cdp.screenshot(shot);
+  return { seated, graphs, shot };
 }
 
 async function main() {
@@ -312,6 +374,11 @@ async function main() {
   console.log('  BreathLib keys:', click.before.breathLib.join(', '));
   console.log('e2e start:sim: skipped consent and reached HUD ok');
   console.log('  hud hidden:', sim.hudHidden, 'hall open:', sim.hallOpen);
+  console.log('e2e ensemble: seated', sim.ensemble.seated.kinds.join(', '));
+  for (const [kind, nodes] of Object.entries(sim.ensemble.graphs)) {
+    console.log(`  ${kind}: ${nodes.join(', ')}`);
+  }
+  console.log('e2e screenshot:', sim.ensemble.shot);
 }
 
 main().catch((err) => {
