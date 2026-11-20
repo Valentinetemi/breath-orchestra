@@ -21,6 +21,8 @@
     KEY,
     SCALE_NAME,
     INSTRUMENTS,
+    INSTRUMENT_ORDER,
+    liveSlot,
   } = window.BreathLib;
 
   const api = window.breathOrchestra;
@@ -166,22 +168,30 @@
     });
   }
 
+  function placePlayer(el, slot) {
+    el.style.left = `${slot.x}%`;
+    el.style.top = `${slot.y}%`;
+    el.style.zIndex = String(10 + (slot.z || 0));
+    el.style.setProperty('--player-scale', String(slot.scale || 1));
+  }
+
   function renderLivePlayer() {
+    const slot = liveSlot(state.instrument);
     liveEl.hidden = false;
     liveEl.className = `player is-live is-${state.instrument}`;
-    liveEl.style.setProperty('--player-scale', '1');
-    liveEl.innerHTML = instrumentMarkup(state.instrument, { live: true, label: INSTRUMENTS[state.instrument].label });
-    document.documentElement.style.setProperty('--spotlight-x', '50%');
+    placePlayer(liveEl, slot);
+    liveEl.innerHTML = instrumentMarkup(state.instrument, {
+      live: true,
+      label: INSTRUMENTS[state.instrument].label,
+    });
+    document.documentElement.style.setProperty('--spotlight-x', `${slot.x}%`);
   }
 
   function renderLayer(layer) {
     const el = document.createElement('div');
     el.className = `player is-${layer.instrument}`;
     el.id = layer.id;
-    el.style.left = `${layer.slot.x}%`;
-    el.style.top = `${layer.slot.y}%`;
-    el.style.zIndex = String(10 + layer.slot.z);
-    el.style.setProperty('--player-scale', String(layer.slot.scale));
+    placePlayer(el, layer.slot);
     el.innerHTML = instrumentMarkup(layer.instrument, {
       layerId: layer.id,
       label: INSTRUMENTS[layer.instrument].label,
@@ -420,9 +430,10 @@
         event.preventDefault();
         onPointerBreath(true);
       } else if (event.key === 'r' || event.key === 'R') armOrStopRecording();
-      else if (event.key === '1') setInstrument('cello');
-      else if (event.key === '2') setInstrument('flute');
-      else if (event.key === '3') setInstrument('violin');
+      else if (/^[1-5]$/.test(event.key)) {
+        const kind = (INSTRUMENT_ORDER || [])[Number(event.key) - 1];
+        if (kind) setInstrument(kind);
+      }
       else if (event.key === 'z' && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         const removed = state.loops.undo();
