@@ -8,7 +8,7 @@ tags: devchallenge, presagechallenge
 
 ## What I Built
 
-Breath Orchestra is a webcam instrument set in a little concert hall. You pick a cello, a flute, or a violin, and your breath shapes how the phrase swells and fades. When the part feels right, you record it. The take is snapped to the next bar, and that instrument stays seated on the stage, still breathing with the loop you made. Then you switch instruments — or add another cello a few steps away — and layer a new part over it, until a small orchestra is sitting in the light.
+Breath Orchestra is a webcam instrument set in a little concert hall. You pick a cello, a flute, a violin, a piano, or drums, and your breath shapes how the phrase swells and fades. When the part feels right, you record it. The take is snapped to the next bar, and that instrument stays seated with the rest of the ensemble — strings at the front, piano to one side, drums on a riser at the back — still playing the loop you made. Then you switch instruments, or add another cello beside the first, and layer a new part over it, until a small band is sitting together in the light.
 
 I wanted it to work for someone who has never played an instrument, and for someone whose breath is naturally shallow or deep. Before any music starts, there is a short calibration: “Breathe normally, we're learning your range.” The app learns the 5th-to-95th percentile of your chest-movement trace, then maps that personal range to a full swell. The music itself stays locked to D minor at 72 BPM, so whatever you do, it still sounds like a piece, not a jumble of notes.
 
@@ -44,7 +44,7 @@ npm start
 
 ## How It Responds to Human Signals
 
-The lead signal is SmartSpectra’s **chest breathing waveform** (`breathing.upperTrace` / `CHEST_BREATHING`), not the 30-second breathing *rate*. The trace is a frame-driven movement signal, updated near camera cadence (about 30 Hz). I use it as a live envelope: inhale swells the instrument under the spotlight, exhale lets it fade. The cello and violin bows travel with that envelope and the strings shimmer; the flute lets little notes drift up from the embouchure.
+The lead signal is SmartSpectra’s **chest breathing waveform** (`breathing.upperTrace` / `CHEST_BREATHING`), not the 30-second breathing *rate*. The trace is a frame-driven movement signal, updated near camera cadence (about 30 Hz). I use it as a live envelope: inhale swells the instrument in its section, exhale lets it fade. The cello and violin bows travel with that envelope and the strings shimmer; the flute lets little notes drift up from the embouchure; the piano keys light and press with the current D-minor chord.
 
 A **15-second calibration** learns each person’s 5th–95th percentile and keeps a slow rolling update afterwards, so a later deeper breath can widen the range without a cough blowing the scale. Slope detection with hysteresis labels inhale, exhale, and hold. If the polarity feels backwards, there is an invert toggle.
 
@@ -53,9 +53,9 @@ I also listen to:
 - **`validationStatus`**, including the SDK’s own hint text, for the small framing preview and to pause a recording if the picture isn’t good.
 - **`face.talking`**, so talking pauses an in-progress take (the SDK’s breathing model is thrown off by speech). Paused time is written as silence so the other parts stay on the grid.
 
-Pulse and HRV are not used to drive the music. I wanted one clear, immediate gesture — breath — and a key/tempo that would hold the ensemble together.
+Breath is still the main gesture, and the music itself never leaves D minor at 72 BPM. Breath alone makes a poor drum controller, so the kit uses a second signal: your **pulse**. I read `cardio.pulseRate` and the `cardio.arterialPressureTrace` (the uncalibrated arterial-pressure waveform). Those values only change how busy or accented the groove is — a little denser when the pulse is quicker, a little more marked when a beat lands near a grid point — and they never move the tempo. A deep inhale can swell the ride or crash and add a short fill into the next bar. In Practice mode I simulate a pulse, so the drums still play without a camera. This is not a heart-rate monitor, and it is not a reading of health.
 
-On the consent screen you can choose **Practice without a camera**. That path never opens the camera and never spends SDK credits. It feeds a synthetic breath waveform into the same calibrator, looper, and instruments, and you can also drive the breath with the keyboard or mouse.
+On the consent screen you can choose **Practice without a camera**. That path never opens the camera and never spends SDK credits. It feeds a synthetic breath waveform, and a simulated pulse, into the same calibrator, looper, and instruments, and you can also drive the breath with the keyboard or mouse.
 
 For a live session the Electron main process creates a `SmartSpectraSDK` from `@smartspectra/node-sdk` only after camera consent, with `enableTelemetry` off unless you opted in. It requests the breathing bundle plus talking, uses the default camera, and forwards decoded metrics and validation events to the renderer over IPC. The API key is read from a gitignored `.env` and is never written into the repo or the UI.
 
@@ -67,7 +67,7 @@ I am entering both prize categories (and the overall pool).
 
 <!-- TEMI: If you want this paragraph to sound more like you, rewrite this subsection in your words. Keep the facts. -->
 
-I didn’t want another dashboard of numbers, or a single pad that brightens when you inhale. I wanted a room you could walk into: velvet curtains, a wooden stage, and instruments that actually sit down and keep playing the part you just breathed. The delight is in the layering — hearing a cello you already recorded still breathing in its chair while you stand under the spotlight with a flute and add the next line.
+I didn’t want another dashboard of numbers, or a single pad that brightens when you inhale. I wanted a room you could walk into: velvet curtains, a wooden stage, and a little ensemble sitting together — cello, violin, flute, piano, and drums — each still playing the part you just breathed. The delight is in the layering: a cello already seated at the front, a piano at the side whose keys follow the phrase, and drums on the riser keeping time while you add the next line.
 
 ### Best Thoughtful Real-World Use
 
@@ -78,7 +78,7 @@ I designed it that way on purpose: consent before the camera, a calibration that
 ## Consent and Data Handling
 
 - **Camera consent.** The camera stays off on launch. Nothing calls `start()` on the SDK, and Electron will not grant the camera permission, until you tick the consent box and choose **Use my camera**. Practice mode never opens the camera. Closing the window stops the session and turns the camera off.
-- **What is measured.** In camera mode, the SDK looks at the movement of your chest (and can notice talking). The app uses those signals to play music. It does not claim to measure health, stress, or emotion as a diagnosis.
+- **What is measured.** In camera mode, the SDK looks at the movement of your chest (and can notice talking). It can also read a pulse rate and an arterial-pressure trace. The app uses those signals only to play music: breath swells the phrase, and pulse gently shapes the drum groove on a locked tempo. It does not claim to measure health, stress, fitness, or emotion, and it does not diagnose anything.
 - **Video.** Frames are processed on your computer. Breath Orchestra does not write video to disk, does not keep a recording of your face, and does not send frames to anyone else. The optional corner preview is local only.
 - **Signals and loops.** Breath envelopes live in memory for the current session. Quit, and they are gone. There is no account, no history, and no analytics service of mine.
 - **SDK telemetry.** Off by default. If you opt in on the consent screen, the SmartSpectra SDK may send session summaries and device-readiness reports (SDK version, device and OS, frame-rate and validation counts, error codes — not video, and not your breath or pulse values). Those requests are authenticated to the API-key account. Details: [SDK Telemetry & Privacy](https://smartspectra.presagetech.com/docs/telemetry-and-privacy).
