@@ -1,6 +1,6 @@
 # Breath Orchestra
 
-A webcam instrument for the [Presage SmartSpectra SDK Challenge](https://dev.to/challenges/presage-2026-11-04). Pick a cello, flute, or violin, and let your breath swell the phrase. Loop that part, switch instruments, and layer a small orchestra on a concert-hall stage.
+A webcam instrument for the [Presage SmartSpectra SDK Challenge](https://dev.to/challenges/presage-2026-11-04). Pick a cello, flute, violin, piano, or drums, and let your breath swell the phrase. Loop that part, switch instruments, and layer a small ensemble that sits together on a concert-hall stage. The drums keep time with a simulated or live pulse, always locked to the same 72 BPM grid.
 
 The music stays in **D minor** at **72 BPM**, and every loop snaps to a whole bar, so it still sounds musical on a first try. A short calibration learns *your* breath range, so a shallow breather and a deep breather both get a full swell.
 
@@ -69,11 +69,13 @@ skips the consent screen and opens practice mode straight away. No `.env` file i
 
 1. Read the consent card. The camera stays off until you choose **Use my camera**.
 2. After the curtain opens, breathe normally for about 15 seconds while the stage lights warm with your breath. This is only learning your range — not a score.
-3. Pick cello, flute, or violin from the playbill.
-4. Breathe. The instrument under the spotlight swells on the inhale and fades on the exhale.
+3. Pick cello, flute, violin, piano, or drums from the playbill (keys `1`–`5`).
+4. Breathe. The instrument in its section swells on the inhale and fades on the exhale. Seated players stay together as one small ensemble: strings at the front, piano to the side, drums on a riser at the back.
 5. Press **Record** (or `R`). Recording starts on the next bar. Press it again to sit that player on the stage. Loops are snapped to whole bars.
 6. Switch instruments and record another part. You can seat more than one cello (or flute, or violin) in different places.
 7. **Mute** or **Undo** on a seated player dims or removes it. `Cmd+Z` undoes the last part.
+
+The drums keep time on the locked 72 BPM grid. In camera mode, your pulse (the rate, or a beat from the arterial-pressure trace) gently changes how busy or accented the groove is — it never speeds up or slows down the music. A deep inhale can swell the ride or crash and add a short fill. Practice mode simulates a pulse, so the kit still plays. This is only for the music. Breath Orchestra does not measure or display heart health.
 
 Talking, or a framing warning from the SDK, pauses an in-progress recording and writes a rest so the other parts stay on the grid. If the swell feels backwards, tick **Invert breath**.
 
@@ -95,8 +97,9 @@ The small preview in the corner shows the SDK’s own framing hints when you use
 ```bash
 npm start           # build nothing extra; open the Electron app
 npm run start:sim   # skip consent and start practice without a camera
-npm test            # unit tests for calibration, quantization, and the looper
+npm test            # unit tests for calibration, quantization, the looper, pulse, and drums
 npm run test:headless
+npm run test:audio  # make sure all five instruments build an audio graph
 npm run test:e2e    # click Practice, walk through a short calibration, reach the HUD
 npm run lint
 ```
