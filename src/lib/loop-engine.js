@@ -79,11 +79,11 @@ class LoopEngine {
     if (layer.muted) return 0;
     let t = timeMs % layer.durationMs;
     if (t < 0) t += layer.durationMs;
-    const pos = (t / layer.durationMs) * (layer.envelope.length - 1);
-    const i = Math.floor(pos);
-    const f = pos - i;
+    const pos = (t / layer.durationMs) * layer.envelope.length;
+    const i = Math.floor(pos) % layer.envelope.length;
+    const f = pos - Math.floor(pos);
     const a = layer.envelope[i];
-    const b = layer.envelope[Math.min(layer.envelope.length - 1, i + 1)];
+    const b = layer.envelope[(i + 1) % layer.envelope.length];
     return a + (b - a) * f;
   }
 }

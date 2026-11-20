@@ -33,8 +33,8 @@ class BreathSimulator {
   }
 
   tick(nowMs) {
-    if (this.t0 == null) this.t0 = nowMs;
-    if (this.lastMs == null) this.lastMs = nowMs;
+    if (this.t0 === null) this.t0 = nowMs;
+    if (this.lastMs === null) this.lastMs = nowMs;
     const dt = Math.min(0.08, Math.max(0, (nowMs - this.lastMs) / 1000));
     this.lastMs = nowMs;
 
@@ -53,7 +53,7 @@ class BreathSimulator {
         this.periodJitter = (Math.sin(elapsed * 0.37) * 0.18);
         this.wander = 0.9 + 0.1 * Math.sin(elapsed * 0.23);
       }
-      let u = cycle - Math.floor(cycle);
+      const u = cycle - Math.floor(cycle);
       if (u < 0.4) {
         const x = u / 0.4;
         env = 0.5 - 0.5 * Math.cos(Math.PI * x);

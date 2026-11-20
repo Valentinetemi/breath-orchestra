@@ -41,12 +41,12 @@ class BreathCalibrator {
 
   addSample(value, timestampMs) {
     if (!Number.isFinite(value)) return this.state();
-    if (this.startedAt == null) this.startedAt = timestampMs;
+    if (this.startedAt === null) this.startedAt = timestampMs;
     this.samples.push({ t: timestampMs, v: value });
     this._rolling.push(value);
     if (this._rolling.length > 600) this._rolling.shift();
 
-    if (!this.complete && timestampMs - this.startedAt >= this.durationMs) {
+    if (!this.complete && timestampMs - this.startedAt >= this.durationMs - 50) {
       this._setRangeFrom(this.samples.map((s) => s.v));
       this.complete = true;
     } else if (!this.complete) {
@@ -92,23 +92,24 @@ class BreathCalibrator {
   }
 
   _updatePhase(value) {
-    const n = this.normalize(value);
-    if (this.smoothed == null) {
-      this.smoothed = n;
-      this.prevSmoothed = n;
+    // Slope is taken in units of the current range, so a widening scale doesn't hide the inhale.
+    if (this.smoothed === null) {
+      this.smoothed = value;
+      this.prevSmoothed = value;
       this.phase = 'hold';
       return;
     }
     this.prevSmoothed = this.smoothed;
-    this.smoothed += (n - this.smoothed) * this.smooth;
-    const slope = this.smoothed - this.prevSmoothed;
+    this.smoothed += (value - this.smoothed) * this.smooth;
+    const span = Math.max(this.p95 - this.p5, 1e-3);
+    const slope = (this.smoothed - this.prevSmoothed) / span;
     if (slope > this.onThreshRatio) this.phase = 'inhale';
     else if (slope < -this.onThreshRatio) this.phase = 'exhale';
     else if (Math.abs(slope) < this.offThreshRatio) this.phase = 'hold';
   }
 
   progress(nowMs) {
-    if (this.startedAt == null) return 0;
+    if (this.startedAt === null) return 0;
     return Math.min(1, (nowMs - this.startedAt) / this.durationMs);
   }
 

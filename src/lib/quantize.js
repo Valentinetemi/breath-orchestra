@@ -97,7 +97,7 @@ class EnvelopeRecorder {
   }
 
   add(envelope, nowMs) {
-    if (this.startMs == null) return;
+    if (this.startMs === null) return;
     const t = nowMs - this.startMs;
     if (t < 0) return;
     // Keep the grid honest: a pause writes silence instead of stretching time.
@@ -107,7 +107,7 @@ class EnvelopeRecorder {
   }
 
   stop(endMs, tempo = TEMPO_BPM) {
-    if (this.startMs == null) {
+    if (this.startMs === null) {
       return { envelope: new Float32Array(2), bars: 1, durationMs: msPerBar(tempo), beats: BEATS_PER_BAR };
     }
     const raw = Math.max(0, endMs - this.startMs);
