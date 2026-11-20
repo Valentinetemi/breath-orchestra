@@ -665,3 +665,41 @@ h1 { font-size: 3rem; line-height: 1; }
   line-height: 1.4;
   box-shadow: 0 12px 30px #000a;
 }
+
+.piano-key {
+  transform-box: fill-box;
+  transform-origin: top center;
+  transition: fill 0.08s linear, transform 0.08s ease;
+}
+.piano-key.white { fill: #f4efe4; }
+.piano-key.black { fill: #1a1210; }
+.player.is-piano .piano-key.is-held.white {
+  fill: #ffe7a0;
+  transform: translateY(3px);
+}
+.player.is-piano .piano-key.is-held.black {
+  fill: #c4a05a;
+  transform: translateY(2px);
+}
+
+.drumhead, .cymbal {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.12s ease;
+}
+.player.is-drums.is-hit-kick .head-kick,
+.player.is-drums.is-hit-snare .head-snare,
+.player.is-drums.is-hit-tom .head-tom {
+  transform: scale(1.07);
+  filter: brightness(1.15);
+}
+.player.is-drums.is-hit-hat .cym-hat,
+.player.is-drums.is-hit-ride .cym-ride,
+.player.is-drums.is-hit-crash .cym-crash {
+  animation: cymbal-hit 0.28s ease-out;
+}
+@keyframes cymbal-hit {
+  0% { transform: rotate(0deg) scale(1); }
+  35% { transform: rotate(-4deg) scale(1.04); }
+  100% { transform: rotate(0deg) scale(1); }
+}
