@@ -1,0 +1,41 @@
+{
+  "name": "breath-orchestra",
+  "version": "1.0.0",
+  "description": "A webcam instrument: breathe to swell a cello, flute, or violin, then loop and layer an orchestra.",
+  "main": "src/main/main.js",
+  "author": "Temiloluwa Valentine",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "start:sim": "electron . --sim",
+    "test": "node --test test/*.test.js",
+    "test:headless": "node test/sim-headless.js",
+    "lint": "eslint src test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "tone": "^15.1.22"
+  },
+  "optionalDependencies": {
+    "@smartspectra/node-sdk": "^3.5.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "eslint": "^9.15.0"
+  },
+  "build": {
+    "appId": "dev.temiloluwa.breath-orchestra",
+    "productName": "Breath Orchestra",
+    "mac": {
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Breath Orchestra uses the camera to read the movement of your chest as you breathe, so you can play music with your breath. Video never leaves this computer."
+      }
+    }
+  }
+}
