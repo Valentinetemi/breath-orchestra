@@ -1,7 +1,7 @@
 {
   "name": "breath-orchestra",
   "version": "1.0.0",
-  "description": "A webcam instrument: breathe to swell a cello, flute, or violin, then loop and layer an orchestra.",
+  "description": "A webcam instrument: breathe to swell a cello, flute, violin, or piano, and let pulse shape the drums, then loop and layer an ensemble.",
   "main": "src/main/main.js",
   "author": "Temiloluwa Valentine",
   "license": "MIT",
@@ -12,7 +12,8 @@
     "test": "node --test test/*.test.js",
     "test:headless": "node test/sim-headless.js",
     "lint": "eslint src test",
-    "test:e2e": "node test/e2e-practice.js"
+    "test:e2e": "node test/e2e-practice.js",
+    "test:audio": "node test/audio-graph.js"
   },
   "engines": {
     "node": ">=20"
