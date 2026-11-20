@@ -23,6 +23,9 @@
     INSTRUMENTS,
     INSTRUMENT_ORDER,
     liveSlot,
+    PulseSimulator,
+    PulseTracker,
+    densityFromPulseRate,
   } = window.BreathLib;
 
   const api = window.breathOrchestra;
@@ -61,6 +64,10 @@
     validationOk: true,
     validationHint: '',
     lastLiveValue: null,
+    pulseSim: new PulseSimulator({ bpm: 70 }),
+    pulseTracker: new PulseTracker(),
+    pulse: { rate: 70, beat: false, value: 0 },
+    pulseRecorder: new EnvelopeRecorder(),
     reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   };
 
@@ -245,6 +252,7 @@
     state.recState = 'recording';
     state.recStart = at;
     state.recorder.start(at);
+    state.pulseRecorder.start(at);
     recordBtn.className = 'record-btn is-recording';
     recordBtn.textContent = 'Stop';
     setStatus('Recording this breath…');
@@ -252,10 +260,15 @@
 
   function commitRecording() {
     const take = state.recorder.stop(transportMs(), TEMPO_BPM);
+    const pulseTake = state.pulseRecorder.stop(transportMs(), TEMPO_BPM);
     state.recState = 'idle';
     recordBtn.className = 'record-btn';
     recordBtn.textContent = 'Record';
-    const added = state.loops.addLayer({ instrument: state.instrument, ...take });
+    const added = state.loops.addLayer({
+      instrument: state.instrument,
+      ...take,
+      pulseEnvelope: pulseTake && pulseTake.envelope,
+    });
     if (added.error) {
       setStatus('The stage is full. Undo a player to add another part.');
       return;
@@ -272,6 +285,30 @@
     el.style.setProperty('--bow', String(bow));
     el.classList.toggle('is-playing', playing && env > 0.08);
     el.classList.toggle('is-muted', el.classList.contains('is-muted'));
+  }
+
+  function lightPianoKeys(el, notes) {
+    if (!el) return;
+    const held = new Set(notes || []);
+    el.querySelectorAll('.piano-key').forEach((key) => {
+      key.classList.toggle('is-held', held.has(key.getAttribute('data-note')));
+    });
+  }
+
+  function flashDrumHits(el, hits) {
+    if (!el || !hits || !hits.length) return;
+    const voices = new Set(hits.map((hit) => hit.voice));
+    voices.forEach((voice) => {
+      const cls = `is-hit-${voice}`;
+      el.classList.add(cls);
+      setTimeout(() => el.classList.remove(cls), 140);
+    });
+  }
+
+  function applyVoiceVisual(el, result) {
+    if (!result || !el) return;
+    if (result.kind === 'piano') lightPianoKeys(el, result.notes);
+    if (result.kind === 'drums') flashDrumHits(el, result.hits);
   }
 
   function tick(now) {
@@ -294,21 +331,41 @@
       }
     }
 
+    if (state.mode === 'sim') {
+      const pulse = state.pulseSim.tick(now);
+      state.pulse.rate = pulse.rate;
+      state.pulse.beat = pulse.beat;
+      state.pulse.value = pulse.value;
+    }
+
     if (state.screen === 'play') {
       const pos = barAndBeat(now, state.transportStart);
+      const density = densityFromPulseRate(state.pulse.rate);
+      const pulseAccent = Boolean(state.pulse.beat);
+      state.pulse.beat = false;
       barReadout.textContent = `Bar ${pos.bar} · Beat ${pos.beat}`;
       pips.forEach((pip, i) => pip.classList.toggle('on', i < pos.beat));
       document.documentElement.style.setProperty('--light-warmth', String(0.2 + state.envelope * 0.55));
       document.documentElement.style.setProperty('--live-env', String(state.envelope));
-      state.orchestra.setLiveEnvelope(state.envelope, pos.totalBeats);
+      const liveVoice = state.orchestra.setLiveEnvelope(state.envelope, pos.totalBeats, {
+        nowMs: now,
+        transportStart: state.transportStart,
+        density,
+        phase: state.phase,
+        pulseAccent,
+        env: state.envelope,
+      });
       updatePlayerVisual(liveEl, state.envelope, state.phase, true);
+      applyVoiceVisual(liveEl, liveVoice);
 
       if (state.recState === 'armed' && now >= state.armedAt) beginTake(state.armedAt);
       if (state.recState === 'recording' || state.recState === 'paused') {
         const blocked = isInputBlocked();
         state.recorder.setPaused(blocked);
+        state.pulseRecorder.setPaused(blocked);
         state.recState = blocked ? 'paused' : 'recording';
         state.recorder.add(state.envelope, now);
+        state.pulseRecorder.add(density, now);
         if (blocked) {
           recordBtn.textContent = 'Paused';
           const why = state.talking ? "I'll wait while you talk." : (state.validationHint || 'Hold still — framing needs a moment.');
@@ -327,7 +384,15 @@
           el.classList.toggle('is-muted', layer.muted);
           updatePlayerVisual(el, env, 'inhale', !layer.muted);
         }
-        state.orchestra.updateLayer(layer.id, env, pos.totalBeats, layer.muted);
+        const result = state.orchestra.updateLayer(layer.id, env, pos.totalBeats, layer.muted, {
+          nowMs: now,
+          transportStart: state.transportStart,
+          density: state.loops.pulseAt(layer, elapsed),
+          phase: 'inhale',
+          pulseAccent: false,
+          env,
+        });
+        applyVoiceVisual(el, result);
       }
     }
 
@@ -347,6 +412,12 @@
     if (Array.isArray(talking) && talking.length) {
       const last = talking[talking.length - 1];
       state.talking = Boolean(last.detected);
+    }
+    if (state.mode === 'live') {
+      const pulse = state.pulseTracker.ingest(payload);
+      if (pulse.rate !== null) state.pulse.rate = pulse.rate;
+      if (pulse.beat) state.pulse.beat = true;
+      if (pulse.value !== undefined) state.pulse.value = pulse.value;
     }
   }
 
@@ -483,6 +554,54 @@
     requestAnimationFrame(tick);
   }
 
+
+
+  window.__breathOrchestraTest = {
+    setInstrument,
+    seat(kind, envelope) {
+      const added = state.loops.addLayer({
+        instrument: kind,
+        envelope: Float32Array.from(envelope || [0.2, 0.85, 1, 0.55, 0.25]),
+        pulseEnvelope: Float32Array.from([0.45, 0.62, 0.55, 0.48]),
+        durationMs: 2000,
+        bars: 1,
+        beats: 4,
+      });
+      if (added.layer) {
+        renderLayer(added.layer);
+        state.orchestra.addLayer(added.layer);
+      }
+      return added.error ? added.error : added.layer.id;
+    },
+    async audioGraph(kind) {
+      await state.orchestra.start();
+      state.orchestra.setLiveInstrument(kind);
+      const now = performance.now();
+      state.orchestra.setLiveEnvelope(0.75, 8, {
+        nowMs: now,
+        transportStart: state.transportStart || now,
+        density: 0.7,
+        phase: 'inhale',
+        pulseAccent: true,
+        env: 0.8,
+      });
+      return state.orchestra.describeLive();
+    },
+    snapshot() {
+      return {
+        instrument: state.instrument,
+        kinds: state.loops.layers.map((layer) => layer.instrument),
+        slots: state.loops.layers.map((layer) => ({
+          id: layer.slot.id,
+          x: layer.slot.x,
+          y: layer.slot.y,
+          riser: Boolean(layer.slot.riser),
+        })),
+        started: state.orchestra.started,
+        live: state.orchestra.describeLive(),
+      };
+    },
+  };
 
     try {
       wire();
