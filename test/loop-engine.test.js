@@ -15,6 +15,10 @@ describe('LoopEngine', () => {
     };
   }
 
+  function dist(a, b) {
+    return Math.hypot(a.slot.x - b.slot.x, a.slot.y - b.slot.y);
+  }
+
   it('seats each layer in a different stage slot, including duplicate instruments', () => {
     const engine = new LoopEngine();
     const a = engine.addLayer(make([0, 1, 0], 'cello')).layer;
@@ -25,6 +29,19 @@ describe('LoopEngine', () => {
     assert.equal(a.instrument, 'cello');
     assert.equal(b.instrument, 'cello');
     assert.equal(c.instrument, 'flute');
+  });
+
+  it('keeps duplicates in the same section so the group stays together', () => {
+    const engine = new LoopEngine();
+    const celloA = engine.addLayer(make([0, 1, 0], 'cello')).layer;
+    const celloB = engine.addLayer(make([0, 1, 0], 'cello')).layer;
+    const piano = engine.addLayer(make([0, 1, 0], 'piano')).layer;
+    const drums = engine.addLayer(make([0, 1, 0], 'drums')).layer;
+    assert.ok(dist(celloA, celloB) < dist(celloA, piano));
+    assert.ok(dist(celloA, celloB) < dist(celloA, drums));
+    assert.ok(drums.slot.y < celloA.slot.y);
+    assert.equal(drums.slot.riser, true);
+    assert.ok(piano.slot.x > celloA.slot.x);
   });
 
   it('mutes a player to silence and undo removes the last layer', () => {
@@ -48,6 +65,17 @@ describe('LoopEngine', () => {
     assert.ok(Math.abs(engine.envelopeAt(layer, 1000) - 1) < 1e-6);
     assert.ok(Math.abs(engine.envelopeAt(layer, 500) - 0.5) < 1e-6);
     assert.ok(Math.abs(engine.envelopeAt(layer, 2500) - 0.5) < 1e-6);
+  });
+
+  it('plays back a recorded pulse envelope with the loop', () => {
+    const engine = new LoopEngine();
+    const layer = engine.addLayer({
+      ...make([0, 1], 'drums'),
+      pulseEnvelope: Float32Array.from([0, 1]),
+    }).layer;
+    assert.ok(Math.abs(engine.pulseAt(layer, 1000) - 1) < 1e-6);
+    engine.mute(layer.id, true);
+    assert.equal(engine.pulseAt(layer, 1000), 0.48);
   });
 
   it('rejects a ninth layer', () => {
