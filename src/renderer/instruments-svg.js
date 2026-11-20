@@ -168,6 +168,89 @@ function fluteSvg() {
 </svg>`;
 }
 
+function pianoKeyNotes() {
+  const whites = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4'];
+  const blacks = [
+    { note: 'Db3', after: 0 }, { note: 'Eb3', after: 1 },
+    { note: 'Gb3', after: 3 }, { note: 'Ab3', after: 4 }, { note: 'Bb3', after: 5 },
+    { note: 'Db4', after: 7 }, { note: 'Eb4', after: 8 },
+    { note: 'Gb4', after: 10 }, { note: 'Ab4', after: 11 }, { note: 'Bb4', after: 12 },
+  ];
+  return { whites, blacks };
+}
+
+function pianoSvg() {
+  const { whites, blacks } = pianoKeyNotes();
+  const originX = 148;
+  const originY = 178;
+  const whiteW = 13.2;
+  const whiteH = 46;
+  const whiteKeys = whites.map((note, i) => {
+    const x = originX + i * whiteW;
+    return `<rect class="piano-key white" data-note="${note}" x="${x.toFixed(1)}" y="${originY}" width="12.4" height="${whiteH}" rx="1.4"/>`;
+  }).join('');
+  const blackKeys = blacks.map(({ note, after }) => {
+    const x = originX + (after + 1) * whiteW - 4.4;
+    return `<rect class="piano-key black" data-note="${note}" x="${x.toFixed(1)}" y="${originY}" width="8.2" height="28" rx="1"/>`;
+  }).join('');
+  return `
+<svg class="inst inst-piano" viewBox="0 0 520 280" aria-hidden="true">
+  <defs>
+    <linearGradient id="pianoEbony" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2a2420"/>
+      <stop offset="0.35" stop-color="#4a4038"/>
+      <stop offset="0.6" stop-color="#1a1614"/>
+      <stop offset="1" stop-color="#0c0a08"/>
+    </linearGradient>
+    <linearGradient id="pianoLid" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#1c1814"/>
+      <stop offset="0.4" stop-color="#3a322c"/>
+      <stop offset="1" stop-color="#0e0c0a"/>
+    </linearGradient>
+    <linearGradient id="pianoGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f3e2b0"/>
+      <stop offset="1" stop-color="#9a7a3a"/>
+    </linearGradient>
+    <linearGradient id="pianoCheek" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3a322c"/>
+      <stop offset="1" stop-color="#1a1612"/>
+    </linearGradient>
+  </defs>
+  <g class="instrument-body">
+    <ellipse class="glow-pool" cx="270" cy="236" rx="150" ry="22" fill="currentColor" opacity="0.22"/>
+    <rect class="leg" x="176" y="214" width="10" height="46" rx="2" fill="#1a1410"/>
+    <rect class="leg" x="400" y="210" width="10" height="50" rx="2" fill="#1a1410"/>
+    <rect class="leg" x="300" y="200" width="9" height="40" rx="2" fill="#161210"/>
+    <path fill="url(#pianoEbony)" stroke="#0a0806" stroke-width="1.1" d="
+      M150 168
+      C150 150 168 138 200 132
+      C280 118 360 88 430 70
+      C470 60 500 78 492 108
+      C478 160 430 186 360 198
+      L360 214
+      L150 220 Z"/>
+    <path fill="url(#pianoLid)" opacity="0.95" d="
+      M198 128
+      C278 114 360 84 428 68
+      C455 62 478 70 470 92
+      C456 128 400 148 330 156
+      C260 164 210 156 198 128 Z"/>
+    <path fill="url(#pianoGold)" opacity="0.55" d="
+      M214 130
+      C286 118 360 90 420 76
+      C430 88 400 118 338 130
+      C276 142 230 140 214 130 Z"/>
+    <path d="M336 128 L336 86 L352 78" fill="none" stroke="#c4a05a" stroke-width="2.2" stroke-linecap="round"/>
+    <rect x="140" y="166" width="236" height="58" rx="6" fill="url(#pianoCheek)"/>
+    <rect x="146" y="174" width="200" height="52" rx="3" fill="#12100e"/>
+    <g class="piano-keys white-keys">${whiteKeys}</g>
+    <g class="piano-keys black-keys">${blackKeys}</g>
+    <rect x="146" y="174" width="200" height="5" fill="#2a221c"/>
+    <path d="M332 168 L360 164 L360 214 L332 218 Z" fill="#2c2620"/>
+  </g>
+</svg>`;
+}
+
 function uniqueSvg(svg, suffix) {
   return svg
     .replace(/id="([^"]+)"/g, (_m, id) => `id="${id}-${suffix}"`)
@@ -175,7 +258,10 @@ function uniqueSvg(svg, suffix) {
 }
 
 function instrumentMarkup(kind, { live = false, layerId = '', label = '' } = {}) {
-  const raw = kind === 'flute' ? fluteSvg() : kind === 'violin' ? violinSvg() : celloSvg();
+  const raw = kind === 'flute' ? fluteSvg()
+    : kind === 'violin' ? violinSvg()
+    : kind === 'piano' ? pianoSvg()
+    : celloSvg();
   const suffix = (layerId || (live ? 'live' : 'x')).replace(/[^a-z0-9-]/gi, '');
   const svg = uniqueSvg(raw, suffix);
   const title = label || kind;
@@ -193,8 +279,8 @@ function instrumentMarkup(kind, { live = false, layerId = '', label = '' } = {})
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { celloSvg, violinSvg, fluteSvg, instrumentMarkup };
+  module.exports = { celloSvg, violinSvg, fluteSvg, pianoSvg, instrumentMarkup };
 }
 if (typeof window !== 'undefined') {
-  window.BreathLib = Object.assign(window.BreathLib || {}, { celloSvg, violinSvg, fluteSvg, instrumentMarkup });
+  window.BreathLib = Object.assign(window.BreathLib || {}, { celloSvg, violinSvg, fluteSvg, pianoSvg, instrumentMarkup });
 }
