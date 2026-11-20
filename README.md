@@ -63,7 +63,7 @@ On the consent screen, choose **Practice without a camera**. No `.env` file is r
 npm run start:sim
 ```
 
-does the same, and also passes a `--sim` flag.
+skips the consent screen and opens practice mode straight away. No `.env` file is required.
 
 ## How to play
 
@@ -94,9 +94,10 @@ The small preview in the corner shows the SDK’s own framing hints when you use
 
 ```bash
 npm start           # build nothing extra; open the Electron app
-npm run start:sim   # same, with the --sim flag
+npm run start:sim   # skip consent and start practice without a camera
 npm test            # unit tests for calibration, quantization, and the looper
 npm run test:headless
+npm run test:e2e    # click Practice, walk through a short calibration, reach the HUD
 npm run lint
 ```
 

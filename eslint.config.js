@@ -32,6 +32,10 @@ module.exports = [
         HTMLElement: 'readonly',
         performance: 'readonly',
         Image: 'readonly',
+        location: 'readonly',
+        fetch: 'readonly',
+        WebSocket: 'readonly',
+        URL: 'readonly',
       },
     },
     rules: {

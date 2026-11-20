@@ -11,7 +11,8 @@
     "start:sim": "electron . --sim",
     "test": "node --test test/*.test.js",
     "test:headless": "node test/sim-headless.js",
-    "lint": "eslint src test"
+    "lint": "eslint src test",
+    "test:e2e": "node test/e2e-practice.js"
   },
   "engines": {
     "node": ">=20"
