@@ -3,8 +3,8 @@
 ## Breath Orchestra
 
 The application code, the concert-hall scene, and the illustrated cello, flute,
-and violin artwork in `src/renderer` were created for this project and are
-released under the MIT License (see `LICENSE`).
+violin, piano, and drum-kit artwork in `src/renderer` were created for this
+project and are released under the MIT License (see `LICENSE`).
 
 The instruments are original SVG illustrations, not traced from a commercial
 sample library. They are stylized theatrical drawings, not photographs.
