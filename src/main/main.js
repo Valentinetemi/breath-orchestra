@@ -136,7 +136,15 @@ ipcMain.handle('sdk:start', async () => {
   } = require('@smartspectra/node-sdk');
 
   const requestedMetrics = [...breathingMetrics];
-  if (MetricType && MetricType.TALKING !== null && MetricType.TALKING !== undefined) requestedMetrics.push(MetricType.TALKING);
+  if (MetricType && MetricType.TALKING !== null && MetricType.TALKING !== undefined) {
+    requestedMetrics.push(MetricType.TALKING);
+  }
+  if (MetricType && MetricType.PULSE_RATE !== null && MetricType.PULSE_RATE !== undefined) {
+    requestedMetrics.push(MetricType.PULSE_RATE);
+  }
+  if (MetricType && MetricType.ARTERIAL_PRESSURE_TRACE !== null && MetricType.ARTERIAL_PRESSURE_TRACE !== undefined) {
+    requestedMetrics.push(MetricType.ARTERIAL_PRESSURE_TRACE);
+  }
 
   const sdk = new SmartSpectraSDK({
     apiKey,
