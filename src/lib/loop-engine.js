@@ -36,7 +36,7 @@
       };
     }
 
-    addLayer({ instrument, envelope, durationMs, bars, beats }) {
+    addLayer({ instrument, envelope, durationMs, bars, beats, pulseEnvelope }) {
       if (this.layers.length >= this.maxLayers) {
         return { error: 'full', layer: null };
       }
@@ -45,6 +45,9 @@
         id: `layer-${this.nextId}`,
         instrument,
         envelope: envelope instanceof Float32Array ? envelope : Float32Array.from(envelope || []),
+        pulseEnvelope: pulseEnvelope
+          ? (pulseEnvelope instanceof Float32Array ? pulseEnvelope : Float32Array.from(pulseEnvelope))
+          : null,
         durationMs,
         bars,
         beats,
@@ -87,17 +90,26 @@
       return this.remove(this.layers[this.layers.length - 1].id);
     }
 
-    envelopeAt(layer, timeMs) {
-      if (!layer || !layer.envelope.length || layer.durationMs <= 0) return 0;
-      if (layer.muted) return 0;
-      let t = timeMs % layer.durationMs;
-      if (t < 0) t += layer.durationMs;
-      const pos = (t / layer.durationMs) * layer.envelope.length;
-      const i = Math.floor(pos) % layer.envelope.length;
+    _sample(list, durationMs, timeMs) {
+      if (!list || !list.length || durationMs <= 0) return 0;
+      let t = timeMs % durationMs;
+      if (t < 0) t += durationMs;
+      const pos = (t / durationMs) * list.length;
+      const i = Math.floor(pos) % list.length;
       const f = pos - Math.floor(pos);
-      const a = layer.envelope[i];
-      const b = layer.envelope[(i + 1) % layer.envelope.length];
+      const a = list[i];
+      const b = list[(i + 1) % list.length];
       return a + (b - a) * f;
+    }
+
+    envelopeAt(layer, timeMs) {
+      if (!layer || layer.muted) return 0;
+      return this._sample(layer.envelope, layer.durationMs, timeMs);
+    }
+
+    pulseAt(layer, timeMs) {
+      if (!layer || layer.muted || !layer.pulseEnvelope || !layer.pulseEnvelope.length) return 0.48;
+      return this._sample(layer.pulseEnvelope, layer.durationMs, timeMs);
     }
   }
 
