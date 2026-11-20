@@ -10,7 +10,7 @@
   const DEFAULT_LOOP_BARS = 2;
   const MAX_LOOP_BARS = 8;
   const MAX_LAYERS = 8;
-  const INSTRUMENT_ORDER = ['cello', 'flute', 'violin', 'piano'];
+  const INSTRUMENT_ORDER = ['cello', 'flute', 'violin', 'piano', 'drums'];
 
   const PIANO_CHORDS = [
     ['D3', 'F3', 'A3', 'D4'],
@@ -41,10 +41,15 @@
       notes: ['D3', 'F3', 'A3', 'C4'],
       chords: PIANO_CHORDS,
     },
+    drums: {
+      id: 'drums',
+      label: 'Drums',
+      notes: [],
+    },
   };
 
   // Audience is toward the bottom of the stage (larger y). Back is smaller y.
-  // Strings sit in a front arc, flute a little behind to the left. Duplicates
+  // Strings sit in a front arc, flute mid-left, piano stage right, drums on a rear riser. Duplicates
   // stay in the same section so the group reads as one ensemble.
   const STAGE_SECTIONS = {
     violin: [
@@ -63,6 +68,10 @@
     piano: [
       { id: 'piano-a', x: 80, y: 46, scale: 1.08, z: 6 },
       { id: 'piano-b', x: 88, y: 54, scale: 0.94, z: 5 },
+    ],
+    drums: [
+      { id: 'drums-a', x: 50, y: 18, scale: 1.04, z: 3, riser: true },
+      { id: 'drums-b', x: 62, y: 16, scale: 0.9, z: 2, riser: true },
     ],
   };
 
