@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self';">
+  <title>Breath Orchestra</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="hall" class="hall" aria-hidden="true">
+    <div class="layer layer-back">
+      <div class="proscenium"></div>
+      <div class="arch"></div>
+    </div>
+    <div class="layer layer-stage">
+      <div class="stage-floor"></div>
+      <div class="spotlight" id="spotlight"></div>
+      <div class="footlights" id="footlights"></div>
+      <div id="players" class="players"></div>
+      <div id="live-player" class="player is-live is-cello" hidden></div>
+    </div>
+    <div class="layer layer-curtains">
+      <div class="curtain curtain-left"></div>
+      <div class="curtain curtain-right"></div>
+      <div class="curtain-valance"></div>
+    </div>
+    <div class="layer layer-seats">
+      <div class="seats" id="seats"></div>
+    </div>
+    <div class="vignette"></div>
+    <div class="dust" id="dust"></div>
+  </div>
+
+  <div id="hud" class="hud" hidden>
+    <div class="hud-top">
+      <div class="transport">
+        <div id="bar-readout">Bar 1 · Beat 1</div>
+        <div id="beat-pips" class="pips" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+      <button type="button" id="record-btn" class="record-btn" aria-label="Record a loop, starting on the next bar">Record</button>
+    </div>
+    <div class="hud-preview">
+      <div id="preview-ph" class="preview-ph">Practice mode<br>No camera</div>
+      <video id="camera-preview" autoplay muted playsinline hidden></video>
+      <canvas id="preview-canvas" hidden></canvas>
+      <p id="framing-hint">Sit still, with your face and chest in view.</p>
+    </div>
+    <div class="playbill" role="tablist" aria-label="Choose an instrument">
+      <button type="button" class="pick is-selected" data-kind="cello" aria-pressed="true">
+        <span>Cello</span>
+      </button>
+      <button type="button" class="pick" data-kind="flute" aria-pressed="false">
+        <span>Flute</span>
+      </button>
+      <button type="button" class="pick" data-kind="violin" aria-pressed="false">
+        <span>Violin</span>
+      </button>
+    </div>
+    <div class="hud-status">
+      <div id="status">Choose an instrument, then breathe.</div>
+      <label class="invert-row"><input type="checkbox" id="invert-breath"> Invert breath (if the swell feels backwards)</label>
+    </div>
+  </div>
+
+  <div id="consent" class="overlay">
+    <div class="card">
+      <p class="kicker">A webcam instrument</p>
+      <h1>Breath Orchestra</h1>
+      <p class="lede">Pick a cello, flute, or violin, and let your breath swell the phrase. Loop that part, then layer another, until a small orchestra is sitting on the stage — played only with your breath.</p>
+      <div class="checks">
+        <label>
+          <input type="checkbox" id="consent-camera">
+          <span>I understand the camera is used only to read the movement of my chest as I breathe, and that video stays on this computer. I consent to turning the camera on if I choose “Use my camera”.</span>
+        </label>
+        <label>
+          <input type="checkbox" id="consent-telemetry">
+          <span>Optionally send SmartSpectra session diagnostics (no video, no breath values). This stays off unless I tick this box.</span>
+        </label>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" id="btn-practice">Practice without a camera</button>
+        <button type="button" class="btn btn-primary" id="btn-live" disabled>Use my camera</button>
+      </div>
+      <p class="fine">This is a musical instrument, not a medical device. It does not diagnose or treat anything. You can stop at any time; closing the window turns the camera off. For camera sessions you will need a free SmartSpectra API key in a local <code>.env</code> file.</p>
+    </div>
+  </div>
+
+  <div id="calibrate" class="overlay overlay-soft" hidden>
+    <div class="cal-card">
+      <p>Breathe normally, we're learning your range.</p>
+      <div class="cal-time" id="cal-time">15 seconds</div>
+    </div>
+  </div>
+
+  <script src="../../node_modules/tone/build/Tone.js"></script>
+  <script src="../lib/music-theory.js"></script>
+  <script src="../lib/quantize.js"></script>
+  <script src="../lib/calibration.js"></script>
+  <script src="../lib/breath-sim.js"></script>
+  <script src="../lib/loop-engine.js"></script>
+  <script src="instruments-svg.js"></script>
+  <script src="orchestra.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
