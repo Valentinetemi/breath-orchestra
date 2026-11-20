@@ -17,8 +17,11 @@
       <div class="stage-floor"></div>
       <div class="spotlight" id="spotlight"></div>
       <div class="footlights" id="footlights"></div>
-      <div id="players" class="players"></div>
-      <div id="live-player" class="player is-live is-cello" hidden></div>
+      <div class="ensemble" id="ensemble">
+        <div class="riser" id="drum-riser" aria-hidden="true"></div>
+        <div id="players" class="players"></div>
+        <div id="live-player" class="player is-live is-cello" hidden></div>
+      </div>
     </div>
     <div class="layer layer-curtains">
       <div class="curtain curtain-left"></div>
@@ -50,13 +53,19 @@
     </div>
     <div class="playbill" role="tablist" aria-label="Choose an instrument">
       <button type="button" class="pick is-selected" data-kind="cello" aria-pressed="true">
-        <span>Cello</span>
+        <span>Cello</span><kbd>1</kbd>
       </button>
       <button type="button" class="pick" data-kind="flute" aria-pressed="false">
-        <span>Flute</span>
+        <span>Flute</span><kbd>2</kbd>
       </button>
       <button type="button" class="pick" data-kind="violin" aria-pressed="false">
-        <span>Violin</span>
+        <span>Violin</span><kbd>3</kbd>
+      </button>
+      <button type="button" class="pick" data-kind="piano" aria-pressed="false">
+        <span>Piano</span><kbd>4</kbd>
+      </button>
+      <button type="button" class="pick" data-kind="drums" aria-pressed="false">
+        <span>Drums</span><kbd>5</kbd>
       </button>
     </div>
     <div class="hud-status">
@@ -71,7 +80,7 @@
     <div class="card">
       <p class="kicker">A webcam instrument</p>
       <h1>Breath Orchestra</h1>
-      <p class="lede">Pick a cello, flute, or violin, and let your breath swell the phrase. Loop that part, then layer another, until a small orchestra is sitting on the stage — played only with your breath.</p>
+      <p class="lede">Pick a cello, flute, violin, piano, or drums, and let your breath swell the phrase. Loop that part, then layer another, until a small ensemble is sitting together on the stage.</p>
       <div class="checks">
         <label>
           <input type="checkbox" id="consent-camera">
@@ -102,6 +111,8 @@
   <script src="../lib/quantize.js"></script>
   <script src="../lib/calibration.js"></script>
   <script src="../lib/breath-sim.js"></script>
+  <script src="../lib/pulse-sim.js"></script>
+  <script src="../lib/drum-groove.js"></script>
   <script src="../lib/loop-engine.js"></script>
   <script src="instruments-svg.js"></script>
   <script src="orchestra.js"></script>
