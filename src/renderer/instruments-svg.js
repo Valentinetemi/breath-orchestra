@@ -251,6 +251,79 @@ function pianoSvg() {
 </svg>`;
 }
 
+function drumsSvg() {
+  return `
+<svg class="inst inst-drums" viewBox="0 0 420 310" aria-hidden="true">
+  <defs>
+    <linearGradient id="drumShell" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c45a4a"/>
+      <stop offset="0.45" stop-color="#8a2828"/>
+      <stop offset="1" stop-color="#4a1214"/>
+    </linearGradient>
+    <linearGradient id="drumHead" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6f0e4"/>
+      <stop offset="0.6" stop-color="#d8cbb6"/>
+      <stop offset="1" stop-color="#a89880"/>
+    </linearGradient>
+    <linearGradient id="cymbalBrass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3e2a8"/>
+      <stop offset="0.5" stop-color="#c4a05a"/>
+      <stop offset="1" stop-color="#7a5a22"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8a8a8a"/>
+      <stop offset="0.5" stop-color="#e8e8e8"/>
+      <stop offset="1" stop-color="#5a5a5a"/>
+    </linearGradient>
+  </defs>
+  <g class="instrument-body">
+    <ellipse class="glow-pool" cx="210" cy="286" rx="130" ry="16" fill="currentColor" opacity="0.2"/>
+    <g class="hardware" stroke="url(#chrome)" stroke-width="3" fill="none" stroke-linecap="round">
+      <line x1="118" y1="86" x2="118" y2="210"/>
+      <line x1="302" y1="96" x2="302" y2="220"/>
+      <line x1="78" y1="150" x2="78" y2="230"/>
+    </g>
+    <g class="kick">
+      <ellipse cx="210" cy="214" rx="78" ry="78" fill="url(#drumShell)" stroke="#3a1010" stroke-width="1.2"/>
+      <ellipse class="drumhead head-kick" cx="210" cy="214" rx="62" ry="62" fill="url(#drumHead)" stroke="#d8cbb6" stroke-width="2"/>
+      <ellipse cx="210" cy="200" rx="22" ry="16" fill="#fff8" opacity="0.35"/>
+    </g>
+    <g class="floor-tom">
+      <rect x="286" y="186" width="54" height="58" rx="6" fill="url(#drumShell)" stroke="#3a1010"/>
+      <ellipse class="drumhead head-tom head-floor" cx="313" cy="186" rx="28" ry="12" fill="url(#drumHead)" stroke="#c8b89a"/>
+      <line x1="296" y1="244" x2="296" y2="268" stroke="url(#chrome)" stroke-width="3"/>
+      <line x1="330" y1="244" x2="330" y2="268" stroke="url(#chrome)" stroke-width="3"/>
+    </g>
+    <g class="rack-toms">
+      <rect x="168" y="132" width="40" height="36" rx="5" fill="url(#drumShell)"/>
+      <ellipse class="drumhead head-tom head-tom-l" cx="188" cy="132" rx="21" ry="9" fill="url(#drumHead)" stroke="#c8b89a"/>
+      <rect x="214" y="126" width="44" height="38" rx="5" fill="url(#drumShell)"/>
+      <ellipse class="drumhead head-tom head-tom-r" cx="236" cy="126" rx="23" ry="9" fill="url(#drumHead)" stroke="#c8b89a"/>
+    </g>
+    <g class="snare">
+      <rect x="108" y="188" width="62" height="28" rx="4" fill="#c4b49a" stroke="#4a3a28"/>
+      <rect x="108" y="198" width="62" height="8" fill="#8a7a62"/>
+      <ellipse class="drumhead head-snare" cx="139" cy="188" rx="32" ry="12" fill="url(#drumHead)" stroke="#c8b89a"/>
+      <line x1="120" y1="216" x2="112" y2="246" stroke="url(#chrome)" stroke-width="3"/>
+      <line x1="156" y1="216" x2="164" y2="246" stroke="url(#chrome)" stroke-width="3"/>
+    </g>
+    <g class="cym-hat">
+      <ellipse class="cymbal cym-hat" cx="78" cy="150" rx="36" ry="8" fill="url(#cymbalBrass)" stroke="#8a6a28"/>
+      <ellipse cx="78" cy="148" rx="10" ry="2.5" fill="#f8e8b0"/>
+    </g>
+    <g class="cym-crash">
+      <ellipse class="cymbal cym-crash" cx="118" cy="86" rx="48" ry="10" fill="url(#cymbalBrass)" stroke="#8a6a28" transform="rotate(-16 118 86)"/>
+      <ellipse cx="118" cy="86" rx="8" ry="2.2" fill="#f8e8b0"/>
+    </g>
+    <g class="cym-ride">
+      <ellipse class="cymbal cym-ride" cx="302" cy="96" rx="52" ry="11" fill="url(#cymbalBrass)" stroke="#8a6a28" transform="rotate(14 302 96)"/>
+      <ellipse cx="302" cy="96" rx="8" ry="2.2" fill="#f8e8b0"/>
+    </g>
+  </g>
+</svg>`;
+}
+
+
 function uniqueSvg(svg, suffix) {
   return svg
     .replace(/id="([^"]+)"/g, (_m, id) => `id="${id}-${suffix}"`)
@@ -261,6 +334,7 @@ function instrumentMarkup(kind, { live = false, layerId = '', label = '' } = {})
   const raw = kind === 'flute' ? fluteSvg()
     : kind === 'violin' ? violinSvg()
     : kind === 'piano' ? pianoSvg()
+    : kind === 'drums' ? drumsSvg()
     : celloSvg();
   const suffix = (layerId || (live ? 'live' : 'x')).replace(/[^a-z0-9-]/gi, '');
   const svg = uniqueSvg(raw, suffix);
@@ -279,8 +353,8 @@ function instrumentMarkup(kind, { live = false, layerId = '', label = '' } = {})
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { celloSvg, violinSvg, fluteSvg, pianoSvg, instrumentMarkup };
+  module.exports = { celloSvg, violinSvg, fluteSvg, pianoSvg, drumsSvg, instrumentMarkup };
 }
 if (typeof window !== 'undefined') {
-  window.BreathLib = Object.assign(window.BreathLib || {}, { celloSvg, violinSvg, fluteSvg, pianoSvg, instrumentMarkup });
+  window.BreathLib = Object.assign(window.BreathLib || {}, { celloSvg, violinSvg, fluteSvg, pianoSvg, drumsSvg, instrumentMarkup });
 }
