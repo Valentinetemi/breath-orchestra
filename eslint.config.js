@@ -30,6 +30,8 @@ module.exports = [
         BreathOrchestra: 'writable',
         URLSearchParams: 'readonly',
         HTMLElement: 'readonly',
+        performance: 'readonly',
+        Image: 'readonly',
       },
     },
     rules: {
