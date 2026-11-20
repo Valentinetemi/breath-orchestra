@@ -3,7 +3,7 @@
 (function (root) {
 
 
-  const { STAGE_SLOTS, MAX_LAYERS } = (typeof module !== 'undefined' && module.exports)
+  const { STAGE_SLOTS, MAX_LAYERS, sectionSlots } = (typeof module !== 'undefined' && module.exports)
     ? require('./music-theory')
     : root.BreathLib;
 
@@ -16,23 +16,31 @@
       this.usedSlots = new Set();
     }
 
-    allocateSlot() {
-      const free = this.slots.find((slot) => !this.usedSlots.has(slot.id));
+    allocateSlot(instrument) {
+      const section = sectionSlots(instrument);
+      const free = section.find((slot) => !this.usedSlots.has(slot.id));
       if (free) {
         this.usedSlots.add(free.id);
         return { ...free };
       }
-      const fallback = this.slots[this.layers.length % this.slots.length];
-      const id = `${fallback.id}-${this.nextId}`;
+      const home = section[section.length - 1] || this.slots[0];
+      const overflow = this.layers.filter((layer) => layer.instrument === instrument).length;
+      const id = `${home.id}-${this.nextId}`;
       this.usedSlots.add(id);
-      return { ...fallback, id, x: fallback.x + 3, y: fallback.y + 2 };
+      return {
+        ...home,
+        id,
+        x: home.x + (overflow % 2 === 0 ? 5 : -4),
+        y: home.y + 3 + overflow,
+        scale: (home.scale || 1) * 0.9,
+      };
     }
 
     addLayer({ instrument, envelope, durationMs, bars, beats }) {
       if (this.layers.length >= this.maxLayers) {
         return { error: 'full', layer: null };
       }
-      const slot = this.allocateSlot();
+      const slot = this.allocateSlot(instrument);
       const layer = {
         id: `layer-${this.nextId}`,
         instrument,

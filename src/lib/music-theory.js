@@ -29,16 +29,41 @@
     },
   };
 
-  const STAGE_SLOTS = [
-    { id: 'center', x: 50, y: 50, scale: 1.0, z: 5 },
-    { id: 'left', x: 34, y: 52, scale: 0.92, z: 4 },
-    { id: 'right', x: 66, y: 52, scale: 0.92, z: 4 },
-    { id: 'far-left', x: 20, y: 56, scale: 0.84, z: 3 },
-    { id: 'far-right', x: 80, y: 56, scale: 0.84, z: 3 },
-    { id: 'front-left', x: 40, y: 60, scale: 0.9, z: 6 },
-    { id: 'front-right', x: 60, y: 60, scale: 0.9, z: 6 },
-    { id: 'front-center', x: 50, y: 63, scale: 0.86, z: 7 },
-  ];
+  // Audience is toward the bottom of the stage (larger y). Back is smaller y.
+  // Strings sit in a front arc, flute a little behind to the left. Duplicates
+  // stay in the same section so the group reads as one ensemble.
+  const STAGE_SECTIONS = {
+    violin: [
+      { id: 'violin-a', x: 36, y: 66, scale: 0.92, z: 8 },
+      { id: 'violin-b', x: 26, y: 58, scale: 0.86, z: 7 },
+      { id: 'violin-c', x: 42, y: 70, scale: 0.88, z: 9 },
+    ],
+    cello: [
+      { id: 'cello-a', x: 52, y: 68, scale: 0.98, z: 8 },
+      { id: 'cello-b', x: 62, y: 60, scale: 0.9, z: 7 },
+    ],
+    flute: [
+      { id: 'flute-a', x: 24, y: 42, scale: 0.9, z: 5 },
+      { id: 'flute-b', x: 16, y: 48, scale: 0.84, z: 5 },
+    ],
+  };
+
+  const STAGE_SLOTS = Object.values(STAGE_SECTIONS).flat();
+
+  function sectionSlots(instrument) {
+    return STAGE_SECTIONS[instrument] || STAGE_SECTIONS.cello;
+  }
+
+  function liveSlot(instrument) {
+    const home = sectionSlots(instrument)[0];
+    return {
+      ...home,
+      id: `${home.id}-live`,
+      y: Math.min(86, home.y + 8),
+      z: home.z + 4,
+      scale: Math.min(1.18, home.scale + 0.08),
+    };
+  }
 
   function msPerBeat(tempo = TEMPO_BPM) {
     return 60000 / tempo;
@@ -57,7 +82,10 @@
     MAX_LOOP_BARS,
     MAX_LAYERS,
     INSTRUMENTS,
+    STAGE_SECTIONS,
     STAGE_SLOTS,
+    sectionSlots,
+    liveSlot,
     msPerBeat,
     msPerBar,
   };
