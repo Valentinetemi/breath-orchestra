@@ -10,6 +10,14 @@
   const DEFAULT_LOOP_BARS = 2;
   const MAX_LOOP_BARS = 8;
   const MAX_LAYERS = 8;
+  const INSTRUMENT_ORDER = ['cello', 'flute', 'violin', 'piano'];
+
+  const PIANO_CHORDS = [
+    ['D3', 'F3', 'A3', 'D4'],
+    ['Bb2', 'D3', 'F3', 'Bb3'],
+    ['F3', 'A3', 'C4', 'F4'],
+    ['C3', 'E3', 'G3', 'C4'],
+  ];
 
   const INSTRUMENTS = {
     cello: {
@@ -26,6 +34,12 @@
       id: 'violin',
       label: 'Violin',
       notes: ['F4', 'A4', 'G4', 'D5'],
+    },
+    piano: {
+      id: 'piano',
+      label: 'Piano',
+      notes: ['D3', 'F3', 'A3', 'C4'],
+      chords: PIANO_CHORDS,
     },
   };
 
@@ -46,6 +60,10 @@
       { id: 'flute-a', x: 24, y: 42, scale: 0.9, z: 5 },
       { id: 'flute-b', x: 16, y: 48, scale: 0.84, z: 5 },
     ],
+    piano: [
+      { id: 'piano-a', x: 80, y: 46, scale: 1.08, z: 6 },
+      { id: 'piano-b', x: 88, y: 54, scale: 0.94, z: 5 },
+    ],
   };
 
   const STAGE_SLOTS = Object.values(STAGE_SECTIONS).flat();
@@ -65,6 +83,11 @@
     };
   }
 
+  function pianoChordAt(totalBeats) {
+    const bar = Math.max(0, Math.floor((totalBeats || 0) / BEATS_PER_BAR));
+    return PIANO_CHORDS[bar % PIANO_CHORDS.length];
+  }
+
   function msPerBeat(tempo = TEMPO_BPM) {
     return 60000 / tempo;
   }
@@ -81,11 +104,14 @@
     DEFAULT_LOOP_BARS,
     MAX_LOOP_BARS,
     MAX_LAYERS,
+    INSTRUMENT_ORDER,
+    PIANO_CHORDS,
     INSTRUMENTS,
     STAGE_SECTIONS,
     STAGE_SLOTS,
     sectionSlots,
     liveSlot,
+    pianoChordAt,
     msPerBeat,
     msPerBar,
   };
