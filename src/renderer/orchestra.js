@@ -332,6 +332,33 @@
       return { kind: entry.voice.kind, notes: entry.voice.notes || [], hits: [] };
     }
 
+    // Song playback needs the stage quiet without losing the chosen instrument.
+    silenceLive() {
+      if (this.live) this._disposeVoice(this.live);
+      this.live = null;
+    }
+
+    accent(id, voices) {
+      const entry = this.layers.get(id);
+      if (!entry || entry.voice.kind !== 'drums') return;
+      entry.voice.gain.gain.rampTo(0.85, 0.02);
+      voices.forEach((voice, step) => this._triggerDrum(entry.voice, { voice, velocity: 0.9, step }));
+    }
+
+    click(accent) {
+      if (!this.started) return;
+      if (!this._click) {
+        this._click = new ToneRef.MembraneSynth({
+          pitchDecay: 0.01,
+          octaves: 2,
+          envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.04 },
+          volume: -14,
+        });
+        this._click.connect(this.master);
+      }
+      this._click.triggerAttackRelease(accent ? 'A4' : 'D4', '32n', undefined, accent ? 0.7 : 0.4);
+    }
+
     removeLayer(id) {
       const entry = this.layers.get(id);
       if (!entry) return;
