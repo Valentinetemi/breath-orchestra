@@ -131,11 +131,12 @@ class Cdp {
   }
 }
 
-function launchElectron(port, extraArgs) {
+function launchElectron(port, extraArgs, extraEnv = {}) {
   const env = {
     ...process.env,
     ELECTRON_DISABLE_SANDBOX: '1',
     ELECTRON_ENABLE_LOGGING: '1',
+    ...extraEnv,
   };
   const args = [
     '-a',
@@ -381,7 +382,11 @@ async function main() {
   console.log('e2e screenshot:', sim.ensemble.shot);
 }
 
-main().catch((err) => {
-  console.error(err.stack || err);
-  process.exit(1);
-});
+module.exports = { freePort, launchElectron, attach, stopApp, waitFor, sleep, assertNoFatal };
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err.stack || err);
+    process.exit(1);
+  });
+}
