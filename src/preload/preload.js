@@ -14,10 +14,4 @@ contextBridge.exposeInMainWorld('breathOrchestra', {
   getLiveCredentials: () => ipcRenderer.invoke('app:getLiveCredentials'),
   setConsent: (payload) => ipcRenderer.invoke('app:setConsent', payload),
   cameraAccess: () => ipcRenderer.invoke('app:cameraAccess'),
-  startSdk: () => ipcRenderer.invoke('sdk:start'),
-  stopSdk: () => ipcRenderer.invoke('sdk:stop'),
-  onSdkEvent: (cb) => {
-    const handler = (_event, type, payload) => cb(type, payload);
-    ipcRenderer.on('sdk:event', handler);
-  },
 });

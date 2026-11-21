@@ -8,18 +8,30 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 let bindSmartSpectraIpc = null;
 let sdkAvailable = false;
+let sdkError = '';
 try {
   ({ bindSmartSpectraIpc } = require('@smartspectra/node-sdk/main'));
   sdkAvailable = true;
-} catch {
-  // Linux CI and machines without the native runtime can still use Practice mode.
-  sdkAvailable = false;
+} catch (err) {
+  // Machines without the native runtime can still use Practice mode.
+  sdkError = err && err.message ? err.message.split('\n')[0] : String(err);
 }
 
 let cameraConsent = false;
 let telemetryEnabled = false;
-let sdkSession = null;
-let mainWindow = null;
+
+function log(...args) {
+  console.log('[breath-orchestra]', ...args);
+}
+
+function logError(...args) {
+  console.error('[breath-orchestra]', ...args);
+}
+
+function bundleReady() {
+  const file = path.join(__dirname, '../../dist/smartspectra-renderer.js');
+  return fs.existsSync(file) && !fs.readFileSync(file, 'utf8').startsWith('window.SmartSpectraMissing');
+}
 
 // The bundled preload carries the SDK bridge; the plain one is enough for Practice mode.
 function preloadPath() {
@@ -28,7 +40,7 @@ function preloadPath() {
 }
 
 function createWindow() {
-  const win = mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 1100,
@@ -46,6 +58,9 @@ function createWindow() {
   });
 
   win.once('ready-to-show', () => win.show());
+  // Only our bundled page should ever hold the camera grant.
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-navigate', (event) => event.preventDefault());
   if (bindSmartSpectraIpc) bindSmartSpectraIpc(win);
   const query = {};
   if (process.argv.includes('--sim')) query.sim = '1';
@@ -57,7 +72,10 @@ function createWindow() {
 app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
     const url = (details && details.requestingUrl) || (wc && wc.getURL()) || '';
-    const ok = cameraConsent && permission === 'media' && url.startsWith('file://');
+    const mediaTypes = (details && details.mediaTypes) || [];
+    const cameraOnly = mediaTypes.length > 0 && mediaTypes.every((type) => type === 'video');
+    const ok = cameraConsent && permission === 'media' && cameraOnly && url.startsWith('file://');
+    if (permission === 'media' && !ok) logError('Blocked a camera request', { cameraConsent, mediaTypes });
     callback(ok);
   });
 
@@ -66,12 +84,19 @@ app.whenReady().then(() => {
     return false;
   });
 
+  log(`Electron ${process.versions.electron} on ${process.platform}-${process.arch}`);
+  if (sdkAvailable) log('SmartSpectra SDK loaded.');
+  else logError(`SmartSpectra SDK not available: ${sdkError}`);
+  if (!bundleReady()) logError('SmartSpectra bridge is not bundled. Start with "npm start" (it runs "npm run build" first).');
+  if (!(process.env.SMARTSPECTRA_API_KEY || '').trim()) logError('SMARTSPECTRA_API_KEY is empty. Add it to .env to use the camera.');
   createWindow();
 });
 
 ipcMain.handle('app:getConfig', async () => ({
   hasApiKey: Boolean((process.env.SMARTSPECTRA_API_KEY || '').trim()),
   sdkAvailable,
+  sdkError,
+  bundleReady: bundleReady(),
   platform: process.platform,
   simFlag: process.argv.includes('--sim'),
 }));
@@ -98,116 +123,6 @@ ipcMain.handle('app:cameraAccess', async () => {
 });
 
 
-function sendSdk(type, payload) {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('sdk:event', type, payload);
-  }
-}
-
-function toPlainMetrics(decoded) {
-  try {
-    return JSON.parse(JSON.stringify(decoded));
-  } catch {
-    return null;
-  }
-}
-
-async function stopSdk() {
-  if (!sdkSession) return { ok: true };
-  try {
-    if (typeof sdkSession.stopAsync === 'function') await sdkSession.stopAsync();
-    else if (typeof sdkSession.stop === 'function') await sdkSession.stop();
-    if (typeof sdkSession.destroy === 'function') await sdkSession.destroy();
-  } catch {
-    // already stopped
-  }
-  sdkSession = null;
-  return { ok: true };
-}
-
-ipcMain.handle('sdk:start', async () => {
-  if (!sdkAvailable) {
-    return { error: 'The SmartSpectra SDK is not available on this machine.' };
-  }
-  if (!cameraConsent) return { error: 'Camera consent is required first.' };
-  const apiKey = (process.env.SMARTSPECTRA_API_KEY || '').trim();
-  if (!apiKey) return { error: 'No API key found. Add SMARTSPECTRA_API_KEY to your .env file.' };
-
-  await stopSdk();
-  const {
-    SmartSpectraSDK,
-    CameraSelection,
-    breathingMetrics,
-    decodeMetrics,
-    MetricType,
-  } = require('@smartspectra/node-sdk');
-
-  const requestedMetrics = [...breathingMetrics];
-  if (MetricType && MetricType.TALKING !== null && MetricType.TALKING !== undefined) {
-    requestedMetrics.push(MetricType.TALKING);
-  }
-  if (MetricType && MetricType.PULSE_RATE !== null && MetricType.PULSE_RATE !== undefined) {
-    requestedMetrics.push(MetricType.PULSE_RATE);
-  }
-  if (MetricType && MetricType.ARTERIAL_PRESSURE_TRACE !== null && MetricType.ARTERIAL_PRESSURE_TRACE !== undefined) {
-    requestedMetrics.push(MetricType.ARTERIAL_PRESSURE_TRACE);
-  }
-
-  const sdk = new SmartSpectraSDK({
-    apiKey,
-    requestedMetrics,
-    enableTelemetry: telemetryEnabled === true,
-  });
-
-  sdk.on('metrics', (buf) => {
-    const decoded = typeof decodeMetrics === 'function' ? decodeMetrics(buf) : buf;
-    const plain = toPlainMetrics(decoded);
-    if (plain) sendSdk('metrics', plain);
-  });
-  sdk.on('validationStatus', (code, ts, hint) => {
-    sendSdk('validation', { code, ts, hint: hint || '' });
-  });
-  sdk.on('error', (code, message, retryable) => {
-    sendSdk('error', { code, message, retryable });
-  });
-  if (typeof sdk.on === 'function') {
-    sdk.on('videoOutput', (frame) => {
-      try {
-        if (!frame) return;
-        if (typeof frame === 'string' && frame.startsWith('data:')) {
-          sendSdk('frame', frame);
-          return;
-        }
-        const buf = Buffer.isBuffer(frame) ? frame : frame.data || frame.buffer;
-        if (buf && buf.length && buf.length < 400000) {
-          const b64 = Buffer.from(buf).toString('base64');
-          sendSdk('frame', `data:image/jpeg;base64,${b64}`);
-        }
-      } catch {
-        // Preview is optional; measurement can continue without it.
-      }
-    });
-  }
-
-  try {
-    if (typeof sdk.useCamera === 'function') {
-      sdk.useCamera(CameraSelection ? CameraSelection.default : undefined);
-    }
-    sdk.start();
-    sdkSession = sdk;
-    return { ok: true };
-  } catch (err) {
-    return { error: err && err.message ? err.message : String(err) };
-  }
-});
-
-ipcMain.handle('sdk:stop', () => stopSdk());
-
-app.on('before-quit', () => {
-  stopSdk();
-});
-
 app.on('window-all-closed', () => {
-  stopSdk();
   app.quit();
 });

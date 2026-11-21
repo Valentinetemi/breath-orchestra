@@ -42,7 +42,7 @@
   const statusEl = document.getElementById('status');
   const hintEl = document.getElementById('framing-hint');
   const previewPh = document.getElementById('preview-ph');
-  const previewCanvas = document.getElementById('preview-canvas');
+  const cameraPreview = document.getElementById('camera-preview');
 
   const state = {
     screen: 'consent',
@@ -64,6 +64,7 @@
     validationOk: true,
     validationHint: '',
     lastLiveValue: null,
+    sdk: null,
     pulseSim: new PulseSimulator({ bpm: 70 }),
     pulseTracker: new PulseTracker(),
     pulse: { rate: 70, beat: false, value: 0 },
@@ -430,6 +431,12 @@
   async function startLiveSdk() {
     previewPh.hidden = true;
     hintEl.textContent = 'Warming up the camera…';
+    const SS = window.SmartSpectra;
+    if (!SS || !SS.SmartSpectraSDK) {
+      hintEl.textContent = 'The SmartSpectra SDK is not available.';
+      state.mode = 'sim';
+      return;
+    }
     const creds = await api.getLiveCredentials();
     if (!creds.apiKey) {
       setStatus('No API key found in <code>.env</code>. You can keep practising without a camera.');
@@ -437,15 +444,28 @@
       state.mode = 'sim';
       return;
     }
-    if (typeof api.startSdk === 'function') {
-      const result = await api.startSdk();
-      if (result && result.error) {
-        hintEl.textContent = result.error;
-        state.mode = 'sim';
-      }
-    } else {
-      hintEl.textContent = 'Live camera starts on macOS with the SmartSpectra SDK.';
-    }
+
+    const sdk = new SS.SmartSpectraSDK({
+      apiKey: creds.apiKey,
+      requestedMetrics: liveMetrics(SS),
+      enableTelemetry: creds.enableTelemetry === true,
+    });
+    state.sdk = sdk;
+    sdk.on('streamAvailable', (stream) => {
+      cameraPreview.srcObject = stream;
+      cameraPreview.hidden = false;
+      cameraPreview.play().catch(() => {});
+    });
+    sdk.on('metrics', (buf) => onMetrics(SS.decodeMetrics(buf)));
+    sdk.on('validationStatus', (code, _ts, hint) => onValidation({ code, hint }));
+    await sdk.start();
+  }
+
+  // Pulse and talking ride along for the drums and the record pause.
+  function liveMetrics(SS) {
+    const extra = [SS.MetricType.TALKING, SS.MetricType.PULSE_RATE, SS.MetricType.ARTERIAL_PRESSURE_TRACE]
+      .filter((code) => Number.isInteger(code));
+    return [...SS.breathingMetrics, ...extra];
   }
 
   function onPointerBreath(down) {
@@ -530,24 +550,6 @@
         const y = (event.clientY / window.innerHeight - 0.5) * 10;
         document.documentElement.style.setProperty('--parx', `${x}px`);
         document.documentElement.style.setProperty('--pary', `${y}px`);
-      });
-    }
-
-    if (api && typeof api.onSdkEvent === 'function') {
-      api.onSdkEvent((type, payload) => {
-        if (type === 'metrics') onMetrics(payload);
-        if (type === 'validation') onValidation(payload);
-        if (type === 'frame') {
-          const ctx = previewCanvas.getContext('2d');
-          const img = new Image();
-          img.onload = () => {
-            previewCanvas.hidden = false;
-            previewCanvas.width = img.width;
-            previewCanvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-          };
-          img.src = payload;
-        }
       });
     }
 
