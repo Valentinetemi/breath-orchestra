@@ -178,18 +178,18 @@
       };
     }
 
-    _setNotes(voice, beat) {
+    _setNotes(voice, beat, cadence) {
       if (!voice || voice.kind === 'piano' || voice.kind === 'drums') return;
       const notes = voice.notes || [];
       if (!notes.length || !ToneRef.Frequency) return;
-      const name = notes[Math.floor(beat) % notes.length];
+      const name = cadence && cadence.length ? cadence[0] : notes[Math.floor(beat) % notes.length];
       const freq = ToneRef.Frequency(name).toFrequency();
       if (voice.source.osc) voice.source.osc.frequency.rampTo(freq, 0.08);
       if (voice.source.osc2) voice.source.osc2.frequency.rampTo(freq * (voice.kind === 'cello' ? 0.5 : 1), 0.08);
     }
 
-    _setPiano(voice, env, totalBeats) {
-      const chord = lib.pianoChordAt(totalBeats);
+    _setPiano(voice, env, totalBeats, cadence) {
+      const chord = cadence && cadence.length ? cadence : lib.pianoChordAt(totalBeats);
       const v = Math.min(1, Math.max(0, env));
       voice.gain.gain.rampTo(v * 0.78, 0.05);
       voice.envFilter.frequency.rampTo(900 + v * 2200, 0.08);
@@ -288,7 +288,7 @@
     setLiveEnvelope(env, totalBeats, extras = {}) {
       if (!this.live) return { kind: this.currentKind, notes: [], hits: [] };
       if (this.live.kind === 'piano') {
-        const notes = this._setPiano(this.live, env, totalBeats);
+        const notes = this._setPiano(this.live, env, totalBeats, extras.cadence);
         return { kind: 'piano', notes, hits: [] };
       }
       if (this.live.kind === 'drums') {
@@ -301,7 +301,7 @@
       if (this.live.envFilter) {
         this.live.envFilter.frequency.rampTo(base + v * (this.live.kind === 'cello' ? 900 : 1400), 0.05);
       }
-      this._setNotes(this.live, totalBeats || 0);
+      this._setNotes(this.live, totalBeats || 0, extras.cadence);
       return { kind: this.live.kind, notes: this.live.notes || [], hits: [] };
     }
 
@@ -319,7 +319,7 @@
           entry.voice.gain.gain.rampTo(0, 0.04);
           return { kind: 'piano', notes: [], hits: [] };
         }
-        const notes = this._setPiano(entry.voice, env, totalBeats);
+        const notes = this._setPiano(entry.voice, env, totalBeats, _extras.cadence);
         return { kind: 'piano', notes, hits: [] };
       }
       if (entry.voice.kind === 'drums') {
@@ -328,7 +328,7 @@
       }
       const v = muted ? 0 : Math.min(1, Math.max(0, env));
       entry.voice.gain.gain.rampTo(v * 0.62, 0.04);
-      this._setNotes(entry.voice, totalBeats || 0);
+      this._setNotes(entry.voice, totalBeats || 0, _extras.cadence);
       return { kind: entry.voice.kind, notes: entry.voice.notes || [], hits: [] };
     }
 
