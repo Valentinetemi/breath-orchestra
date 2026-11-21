@@ -61,6 +61,46 @@
     return { order, sections, totalBars: bar, tracks };
   }
 
+  function percentileOf(sorted, p) {
+    if (!sorted.length) return 0;
+    const i = Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)));
+    return sorted[i];
+  }
+
+  function gentleSwell(n, bars) {
+    const out = new Float32Array(n);
+    for (let i = 0; i < n; i += 1) {
+      const u = (i / Math.max(1, n - 1)) * bars;
+      out[i] = 0.25 + 0.6 * Math.sin(Math.PI * (u % 1)) ** 2;
+    }
+    return out;
+  }
+
+  // A shy or noisy take still has to sound like music in the song.
+  function shapeTake(envelope, bars = PART_BARS) {
+    const src = Array.from(envelope || []).map((v) => (Number.isFinite(v) ? v : 0));
+    const n = Math.max(2, src.length);
+    const sorted = src.slice().sort((a, b) => a - b);
+    const lo = percentileOf(sorted, 0.05);
+    const hi = percentileOf(sorted, 0.95);
+    const range = hi - lo;
+    const swell = gentleSwell(n, bars);
+    const filled = src.length < 2 || range < 0.08;
+    const out = new Float32Array(n);
+    for (let i = 0; i < n; i += 1) {
+      const norm = filled ? 0 : Math.min(1, Math.max(0, (src[i] - lo) / range));
+      const v = filled ? swell[i] * 0.7 + norm * 0.3 : norm;
+      out[i] = 0.08 + 0.92 * v;
+    }
+    smoothInPlace(out, 0.35);
+    return { envelope: out, filled };
+  }
+
+  function smoothInPlace(arr, alpha) {
+    for (let i = 1; i < arr.length; i += 1) arr[i] = arr[i - 1] + (arr[i] - arr[i - 1]) * alpha;
+    for (let i = arr.length - 2; i >= 0; i -= 1) arr[i] = arr[i + 1] + (arr[i] - arr[i + 1]) * alpha;
+  }
+
   function sectionAtBar(song, bar) {
     if (!song) return null;
     for (let i = song.sections.length - 1; i >= 0; i -= 1) {
@@ -76,6 +116,7 @@
     RECORD_ORDER,
     arrangeSong,
     sectionAtBar,
+    shapeTake,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;
   root.BreathLib = Object.assign(root.BreathLib || {}, exported);

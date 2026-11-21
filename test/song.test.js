@@ -66,3 +66,31 @@ describe('arrangeSong', () => {
     assert.equal(song.sectionAtBar(s, s.totalBars - 0.1).section.name, 'Ending');
   });
 });
+
+describe('shapeTake', () => {
+  it('stretches a quiet but real breath to the full range', () => {
+    const env = Array.from({ length: 120 }, (_, i) => 0.4 + 0.1 * Math.sin(i / 6));
+    const { envelope, filled } = song.shapeTake(env);
+    assert.equal(filled, false);
+    assert.ok(Math.max(...envelope) > 0.85);
+    assert.ok(Math.min(...envelope) < 0.25);
+  });
+
+  it('fills a flat take with a gentle swell so the song never goes dead', () => {
+    const { envelope, filled } = song.shapeTake(new Float32Array(120));
+    assert.equal(filled, true);
+    assert.ok(Math.max(...envelope) > 0.5);
+  });
+
+  it('stays between 0 and 1 and keeps the length', () => {
+    const env = Array.from({ length: 90 }, (_, i) => (i % 7 === 0 ? 5 : -3));
+    const { envelope } = song.shapeTake(env);
+    assert.equal(envelope.length, 90);
+    for (const v of envelope) assert.ok(v >= 0 && v <= 1);
+  });
+
+  it('copes with junk input', () => {
+    const { envelope } = song.shapeTake([NaN, undefined]);
+    assert.ok(envelope.every((v) => Number.isFinite(v)));
+  });
+});
