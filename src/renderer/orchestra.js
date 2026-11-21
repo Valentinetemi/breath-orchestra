@@ -292,7 +292,7 @@
         return { kind: 'piano', notes, hits: [] };
       }
       if (this.live.kind === 'drums') {
-        const hits = this._advanceDrums(this.live, { ...extras, env, muted: false }, 'live');
+        const hits = this._advanceDrums(this.live, { ...extras, env, muted: Boolean(extras.muted) }, 'live');
         return { kind: 'drums', notes: [], hits };
       }
       const v = Math.min(1, Math.max(0, env));

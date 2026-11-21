@@ -838,6 +838,9 @@
       });
       return state.orchestra.describeLive();
     },
+    song() {
+      return state.songMode ? state.songMode.snapshot() : null;
+    },
     snapshot() {
       return {
         instrument: state.instrument,
