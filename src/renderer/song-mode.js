@@ -64,6 +64,9 @@
     }
 
     stopAll() {
+      clearTimeout(this.arrangeTimer);
+      if (this.capturing) this.orchestra.stopCapture();
+      this.capturing = false;
       this.disposeVoices();
       this.orchestra.silenceLive();
       this.recorder = null;
@@ -125,6 +128,9 @@
       if (id === 'start') this.startRecording();
       else if (id === 'skip') this.skipPart();
       else if (id === 'finish') this.finishRecording();
+      else if (id === 'replay') { this.performer = null; this.startListen(); }
+      else if (id === 'stop') this.finishPlayback();
+      else if (id === 'new') { this.stopAll(); this.performer = null; this.song = null; this.enter(); }
       else if (id === 'free') this.host.leave();
     }
 
@@ -289,10 +295,133 @@
       this.setActions([]);
       this.song = lib.arrangeSong(this.parts);
       this.host.onSongReady(this.song);
+      clearTimeout(this.arrangeTimer);
+      this.arrangeTimer = setTimeout(() => this.startListen(), Math.max(150, 1400 / this.speed));
+    }
+
+    // ---- Listen -------------------------------------------------------------
+
+    makeSongVoices(skip) {
+      this.disposeVoices();
+      this.voiceIds = this.song.order.filter((kind) => kind !== skip).map((kind) => {
+        const id = `song-${kind}`;
+        this.orchestra.addLayer({ id, instrument: kind });
+        return id;
+      });
+    }
+
+    startListen(now = performance.now()) {
+      if (!this.song) return;
+      this.phase = 'listen';
+      this.t0 = now;
+      this.lastSection = -1;
+      this.accented = false;
+      this.orchestra.silenceLive();
+      this.host.hideLivePlayer();
+      this.makeSongVoices(null);
+      this.renderPlayers(this.song.order);
+      this.ui.count.hidden = true;
+      this.ui.guide.hidden = true;
+      this.renderChips(null, this.song.order);
+      this.setActions([
+        { id: 'stop', label: 'Stop' },
+        { id: 'free', label: 'Back to free play' },
+      ]);
+      this.beginCapture();
+    }
+
+    beginCapture() {
+      this.pendingBlob = null;
+      this.capturing = this.orchestra.startCapture();
+    }
+
+    playSong(t, skip) {
+      const mix = lib.songMixAt(this.song, t);
+      this.song.order.forEach((kind) => {
+        const v = mix.voices[kind];
+        const node = el(`song-player-${kind}`);
+        if (kind === skip) return;
+        const result = this.orchestra.updateLayer(`song-${kind}`, v.env, mix.totalBeats, v.muted, {
+          nowMs: t,
+          transportStart: 0,
+          density: mix.density,
+          phase: 'inhale',
+          pulseAccent: false,
+          env: v.env,
+          cadence: v.cadence,
+        });
+        if (node) {
+          node.classList.toggle('is-featured', v.active);
+          node.classList.toggle('is-entering', v.entering && mix.bar - mix.section.startBar < 1);
+          this.host.updatePlayerVisual(node, v.env, 'inhale', v.active);
+          this.host.applyVoiceVisual(node, result);
+        }
+      });
+      if (mix.lastBar && !this.accented && this.song.order.includes('drums') && skip !== 'drums') {
+        this.accented = true;
+        this.orchestra.accent('song-drums', ['kick', 'crash']);
+      }
+      this.host.setBar(mix.bar);
+      this.setProgress(mix.progress);
+      return mix;
+    }
+
+    sectionTitle(mix) {
+      const { section } = mix;
+      if (section.name === 'Intro') return `Intro · ${this.label(this.song.order[0])}`;
+      return section.name;
+    }
+
+    tickListen(now) {
+      const t = this.clock(now);
+      const mix = this.playSong(t, null);
+      if (mix.sectionIndex !== this.lastSection) {
+        this.lastSection = mix.sectionIndex;
+        const entering = mix.section.entering;
+        if (entering) this.host.setSpotlight(entering);
+        const message = entering && mix.sectionIndex > 0
+          ? `The ${this.label(entering).toLowerCase()} joins in.`
+          : lib.cheer('listen', mix.sectionIndex);
+        this.setText(this.sectionTitle(mix), message, 'Your song');
+      }
+      if (t >= lib.songDurationMs(this.song) + this.barMs) this.finishPlayback();
+    }
+
+    finishPlayback() {
+      this.phase = 'done';
+      this.capturing = false;
+      (this.voiceIds || []).forEach((id) => this.orchestra.updateLayer(id, 0, 0, true));
+      this.orchestra.silenceLive();
+      this.ui.guide.hidden = true;
+      this.setProgress(1);
+      this.orchestra.stopCapture().then((blob) => {
+        this.pendingBlob = blob;
+        if (blob) this.lastBlob = blob;
+        if (this.phase === 'done') this.renderDone();
+      });
+      this.renderDone();
+    }
+
+    renderDone() {
+      this.host.hideLivePlayer();
+      this.setText(
+        this.performer ? 'What a performance' : "That's your song",
+        this.performer
+          ? 'You and your band, all from your breath. Play again whenever you like.'
+          : 'Every swell came from your breath. Want to play along with it?',
+        'Song mode · just for fun',
+      );
+      this.setActions([
+        { id: 'replay', label: 'Play it again' },
+        { id: 'pick', label: 'Play along', primary: true },
+        { id: 'new', label: 'New song' },
+        { id: 'free', label: 'Back to free play' },
+      ]);
     }
 
     tick(now, input) {
       if (this.phase === 'countin' || this.phase === 'record') this.tickRecord(now, input);
+      else if (this.phase === 'listen') this.tickListen(now);
     }
 
     snapshot() {
