@@ -20,6 +20,7 @@
       <div class="ensemble" id="ensemble">
         <div class="riser" id="drum-riser" aria-hidden="true"></div>
         <div id="players" class="players"></div>
+        <div id="song-players" class="players song-players" hidden></div>
         <div id="live-player" class="player is-live is-cello" hidden></div>
       </div>
     </div>
@@ -37,6 +38,10 @@
 
   <div id="hud" class="hud" hidden>
     <div class="hud-top">
+      <div class="mode-switch" role="group" aria-label="Mode">
+        <button type="button" id="mode-free" class="mode-btn is-on" aria-pressed="true">Free play</button>
+        <button type="button" id="mode-song" class="mode-btn" aria-pressed="false">Song</button>
+      </div>
       <div class="transport">
         <div id="bar-readout">Bar 1 · Beat 1</div>
         <div id="beat-pips" class="pips" aria-hidden="true">
@@ -67,6 +72,19 @@
         <span>Drums</span><kbd>5</kbd>
       </button>
     </div>
+    <div id="song-guide" class="song-guide" hidden>
+      <canvas id="song-guide-canvas" width="720" height="130" aria-hidden="true"></canvas>
+      <p id="song-cue" class="song-cue" aria-live="polite"></p>
+    </div>
+    <section id="song-panel" class="song-panel" hidden aria-live="polite">
+      <p class="song-kicker" id="song-kicker">Song mode · just for fun</p>
+      <h2 id="song-title">Make a song with your breath</h2>
+      <p id="song-message"></p>
+      <div id="song-count" class="song-count" hidden></div>
+      <div id="song-parts" class="song-parts"></div>
+      <div class="song-progress" aria-hidden="true"><span id="song-progress-bar"></span></div>
+      <div id="song-actions" class="song-actions"></div>
+    </section>
     <div class="hud-status">
       <div id="status">Choose an instrument, then breathe.</div>
       <label class="invert-row"><input type="checkbox" id="invert-breath"> Invert breath (if the swell feels backwards)</label>
@@ -116,6 +134,7 @@
   <script src="../lib/pulse-sim.js"></script>
   <script src="../lib/drum-groove.js"></script>
   <script src="../lib/loop-engine.js"></script>
+  <script src="../lib/song.js"></script>
   <script src="instruments-svg.js"></script>
   <script src="orchestra.js"></script>
   <script src="../../dist/smartspectra-renderer.js"></script>

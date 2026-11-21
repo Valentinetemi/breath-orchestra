@@ -330,7 +330,7 @@ function uniqueSvg(svg, suffix) {
     .replace(/url\(#([^)]+)\)/g, (_m, id) => `url(#${id}-${suffix})`);
 }
 
-function instrumentMarkup(kind, { live = false, layerId = '', label = '' } = {}) {
+function instrumentMarkup(kind, { live = false, layerId = '', label = '', controls: withControls = !live } = {}) {
   const raw = kind === 'flute' ? fluteSvg()
     : kind === 'violin' ? violinSvg()
     : kind === 'piano' ? pianoSvg()
@@ -339,7 +339,7 @@ function instrumentMarkup(kind, { live = false, layerId = '', label = '' } = {})
   const suffix = (layerId || (live ? 'live' : 'x')).replace(/[^a-z0-9-]/gi, '');
   const svg = uniqueSvg(raw, suffix);
   const title = label || kind;
-  const controls = live ? '' : `
+  const controls = !withControls ? '' : `
     <div class="player-controls">
       <button type="button" class="icon-btn mute-btn" data-action="mute" data-id="${layerId}" aria-label="Mute ${title}">Mute</button>
       <button type="button" class="icon-btn undo-btn" data-action="remove" data-id="${layerId}" aria-label="Remove ${title}">Undo</button>
