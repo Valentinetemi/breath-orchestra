@@ -81,6 +81,16 @@ app.whenReady().then(() => {
     callback(ok);
   });
 
+  session.defaultSession.on('will-download', (_event, item) => {
+    item.setSaveDialogOptions({
+      title: 'Save your song',
+      defaultPath: path.join(app.getPath('downloads'), item.getFilename()),
+    });
+    item.once('done', (_e, state) => {
+      if (state === 'completed') log(`Saved ${item.getSavePath()}`);
+    });
+  });
+
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => {
     if (permission === 'media') return cameraConsent;
     return false;
