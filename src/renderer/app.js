@@ -74,6 +74,8 @@
     pulseTracker: new PulseTracker(),
     pulse: { rate: 70, beat: false, value: 0 },
     pulseRecorder: new EnvelopeRecorder(),
+    view: 'free',
+    songMode: null,
     reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   };
 
@@ -194,14 +196,14 @@
     el.style.setProperty('--player-scale', String(slot.scale || 1));
   }
 
-  function renderLivePlayer() {
-    const slot = liveSlot(state.instrument);
+  function renderLivePlayer(kind = state.instrument) {
+    const slot = liveSlot(kind);
     liveEl.hidden = false;
-    liveEl.className = `player is-live is-${state.instrument}`;
+    liveEl.className = `player is-live is-${kind}`;
     placePlayer(liveEl, slot);
-    liveEl.innerHTML = instrumentMarkup(state.instrument, {
+    liveEl.innerHTML = instrumentMarkup(kind, {
       live: true,
-      label: INSTRUMENTS[state.instrument].label,
+      label: INSTRUMENTS[kind].label,
     });
     document.documentElement.style.setProperty('--spotlight-x', `${slot.x}%`);
   }
@@ -347,7 +349,10 @@
       state.pulse.value = pulse.value;
     }
 
-    if (state.screen === 'play') {
+    if (state.screen === 'play' && state.view === 'song') {
+      state.songMode.tick(now, { env: state.envelope, phase: state.phase, blocked: isInputBlocked() });
+      document.documentElement.style.setProperty('--light-warmth', String(0.2 + state.envelope * 0.55));
+    } else if (state.screen === 'play') {
       const pos = barAndBeat(now, state.transportStart);
       const density = densityFromPulseRate(state.pulse.rate);
       const pulseAccent = Boolean(state.pulse.beat);
@@ -628,6 +633,84 @@
     return [...SS.breathingMetrics, ...extra];
   }
 
+  function setModeButtons(view) {
+    [['mode-free', 'free'], ['mode-song', 'song']].forEach(([id, name]) => {
+      const btn = $(id);
+      btn.classList.toggle('is-on', view === name);
+      btn.setAttribute('aria-pressed', String(view === name));
+    });
+  }
+
+  function enterSong() {
+    if (state.screen !== 'play' || state.view === 'song') return;
+    if (state.recState !== 'idle') {
+      state.recState = 'idle';
+      state.recorder.reset();
+      state.pulseRecorder.reset();
+      recordBtn.className = 'record-btn';
+      recordBtn.textContent = 'Record';
+    }
+    // Free-play loops wait, silent, until you come back.
+    state.loops.layers.forEach((layer) => state.orchestra.updateLayer(layer.id, 0, 0, true));
+    playersEl.hidden = true;
+    state.view = 'song';
+    hud.classList.add('is-song');
+    setModeButtons('song');
+    state.orchestra.silenceLive();
+    liveEl.hidden = true;
+    state.songMode.enter();
+    setStatus('Song mode · hold Space or just breathe. No scores, just music.');
+  }
+
+  function leaveSong() {
+    if (state.view !== 'song') return;
+    state.songMode.exit();
+    state.view = 'free';
+    hud.classList.remove('is-song');
+    setModeButtons('free');
+    playersEl.hidden = false;
+    renderLivePlayer();
+    state.orchestra.setLiveInstrument(state.instrument);
+    setStatus(`Back to free play · ${KEY} · ${TEMPO_BPM} BPM.`);
+  }
+
+  function songSpeed() {
+    const raw = Number(new URLSearchParams(location.search).get('songSpeed'));
+    return Number.isFinite(raw) && raw > 0 ? raw : 1;
+  }
+
+  function makeSongMode() {
+    return new window.BreathLib.SongMode({
+      orchestra: state.orchestra,
+      speed: songSpeed(),
+      placePlayer,
+      updatePlayerVisual,
+      applyVoiceVisual,
+      showLivePlayer(kind) {
+        renderLivePlayer(kind);
+      },
+      hideLivePlayer() {
+        liveEl.hidden = true;
+      },
+      updateLivePlayer(env, phase, result) {
+        updatePlayerVisual(liveEl, env, phase, true);
+        applyVoiceVisual(liveEl, result);
+      },
+      setSpotlight(kind) {
+        document.documentElement.style.setProperty('--spotlight-x', `${liveSlot(kind).x}%`);
+      },
+      setBar(bar) {
+        const beats = Math.max(0, bar) * 4;
+        const beat = Math.floor(beats % 4) + 1;
+        barReadout.textContent = `Bar ${Math.floor(Math.max(0, bar)) + 1} · Beat ${beat}`;
+        pips.forEach((pip, i) => pip.classList.toggle('on', i < beat));
+      },
+      setStatus,
+      onSongReady() {},
+      leave: leaveSong,
+    });
+  }
+
   function onPointerBreath(down) {
     if (state.mode !== 'sim') return;
     if (down) state.simulator.inhale();
@@ -643,6 +726,9 @@
       liveBtn.disabled = !cameraBox.checked;
     });
     $('btn-practice').addEventListener('click', () => beginSession('sim'));
+    state.songMode = makeSongMode();
+    $('mode-song').addEventListener('click', enterSong);
+    $('mode-free').addEventListener('click', leaveSong);
     $('live-error').addEventListener('click', (event) => { event.currentTarget.hidden = true; });
     liveBtn.addEventListener('click', () => {
       if (!cameraBox.checked) return;
@@ -681,6 +767,8 @@
       if (event.code === 'Space') {
         event.preventDefault();
         onPointerBreath(true);
+      } else if (state.view === 'song') {
+        return;
       } else if (event.key === 'r' || event.key === 'R') armOrStopRecording();
       else if (/^[1-5]$/.test(event.key)) {
         const kind = (INSTRUMENT_ORDER || [])[Number(event.key) - 1];
