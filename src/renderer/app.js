@@ -41,8 +41,10 @@
   const pips = [...document.getElementById('beat-pips').children];
   const statusEl = document.getElementById('status');
   const hintEl = document.getElementById('framing-hint');
+  const calHintEl = document.getElementById('cal-hint');
   const previewPh = document.getElementById('preview-ph');
   const cameraPreview = document.getElementById('camera-preview');
+  const calPreview = document.getElementById('cal-preview');
 
   const state = {
     screen: 'consent',
@@ -65,6 +67,9 @@
     validationHint: '',
     lastLiveValue: null,
     sdk: null,
+    liveWatchdog: null,
+    liveMetricsCount: 0,
+    lastValidationName: null,
     pulseSim: new PulseSimulator({ bpm: 70 }),
     pulseTracker: new PulseTracker(),
     pulse: { rate: 70, beat: false, value: 0 },
@@ -103,6 +108,12 @@
         dust.appendChild(s);
       }
     }
+  }
+
+  // The HUD is hidden while calibrating, so framing hints go to both places.
+  function setHint(text) {
+    hintEl.textContent = text;
+    calHintEl.textContent = text;
   }
 
   function setStatus(text) {
@@ -159,7 +170,7 @@
     state.calibrator = new BreathCalibrator({ durationMs: calibrationMs() });
     calibrateEl.hidden = false;
     if (state.mode === 'live') startLiveSdk();
-    else hintEl.textContent = 'Practice mode · hold Space or the mouse to breathe in.';
+    else setHint('Practice mode · hold Space or the mouse to breathe in.');
   }
 
   function finishCalibration() {
@@ -422,46 +433,191 @@
   function onValidation({ code, hint }) {
     state.validationHint = hint || '';
     state.validationOk = code === 0 || code === 'kOk' || code === 'OK' || code === 'ok';
-    hintEl.textContent = hint || (state.validationOk ? 'Looks good. Keep your chest in view.' : '');
+    setHint(hint || (state.validationOk ? 'Looks good. Keep your chest in view.' : ''));
+  }
+
+  const LIVE_WATCHDOG_MS = 10000;
+
+  const VALIDATION_TEXT = {
+    kNoFaceFound: "I can't see your face. Sit facing the camera.",
+    kMultipleFacesFound: 'Only one person in the frame, please.',
+    kFaceNotCentered: 'Move so your face is in the middle of the frame.',
+    kFaceSizeOutOfRange: 'Move a little closer or further away.',
+    kTooDark: "It's too dark. Put a light in front of you.",
+    kTooBright: "It's too bright. Turn away from the window or lamp.",
+    kChestNotVisible: 'Sit back so your chest is in view.',
+    kCameraTuning: 'The camera is adjusting…',
+    kFrameRateTooLow: 'The camera is too slow. Add light or close other camera apps.',
+    kExcessiveMotion: 'Hold still for a moment.',
+    kFaceTooClose: 'Move back a little.',
+    kFaceTooFar: 'Move a little closer.',
+    kFaceTooHigh: 'Lower the camera or sit up less.',
+    kFaceTooLow: 'Raise the camera or sit up taller.',
+    kFaceNotForward: 'Look towards the camera.',
+  };
+
+  const ERROR_TEXT = {
+    kAuthenticationFailed: 'Your SmartSpectra API key was rejected. Check SMARTSPECTRA_API_KEY in .env (no quotes or spaces), then restart.',
+    kCreditExhausted: 'Your SmartSpectra credits have run out. Top up at physiology.presagetech.com.',
+    kNetworkError: "SmartSpectra couldn't reach its server. Check your internet connection.",
+    kServerError: 'The SmartSpectra server had a problem. Try again in a minute.',
+    kInputUnavailable: "The camera couldn't be opened. Close other apps using it and try again.",
+    kMetricNotAuthorized: "Your API key isn't allowed some of the requested metrics.",
+    kSustainedLowFrameRate: 'The camera frame rate stayed too low. Add light or close other camera apps.',
+  };
+
+  function codeName(table, code) {
+    const entry = table && Object.entries(table).find(([, value]) => value === code);
+    return entry ? entry[0] : String(code);
+  }
+
+  function logToTerminal(level, message) {
+    if (api && typeof api.log === 'function') api.log(level, message);
+    if (level === 'error') console.error(message);
+    else console.log(message);
+  }
+
+  function showLiveError(message) {
+    const el = $('live-error');
+    el.textContent = `${message} Switched to practice mode: hold Space or the mouse to breathe.`;
+    el.hidden = false;
+  }
+
+  function failLive(message) {
+    logToTerminal('error', `Live mode stopped: ${message}`);
+    showLiveError(message);
+    clearTimeout(state.liveWatchdog);
+    const sdk = state.sdk;
+    state.sdk = null;
+    if (sdk) {
+      sdk.stop().catch(() => {}).finally(() => { try { sdk.destroy(); } catch { /* gone */ } });
+    }
+    [cameraPreview, calPreview].forEach((video) => { video.hidden = true; video.srcObject = null; });
+    previewPh.hidden = false;
+    previewPh.innerHTML = 'Practice mode<br>Camera off';
+    setHint('Practice mode · hold Space or the mouse to breathe in.');
+    state.mode = 'sim';
+    state.lastLiveValue = null;
+  }
+
+  function cameraErrorText(err) {
+    const name = err && err.name;
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      return 'Camera permission was denied. Allow it in System Settings > Privacy & Security > Camera for the app you ran npm start from, then quit and reopen that app.';
+    }
+    if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'No camera was found.';
+    if (name === 'NotReadableError') return 'The camera is busy. Close FaceTime, Zoom, Meet or Photo Booth and try again.';
+    return null;
+  }
+
+  function sdkErrorText(SS, code, message) {
+    const name = codeName(SS.SmartSpectraErrorCode, code);
+    return ERROR_TEXT[name] || `SmartSpectra error ${name}${message ? `: ${message}` : ''}.`;
+  }
+
+  function armLiveWatchdog() {
+    clearTimeout(state.liveWatchdog);
+    state.liveWatchdog = setTimeout(() => {
+      if (state.mode !== 'live' || state.liveMetricsCount > 0) return;
+      const hint = state.validationHint || 'no framing hint from the SDK yet';
+      const message = `No breath data after ${LIVE_WATCHDOG_MS / 1000} seconds. Last hint: ${hint}.`;
+      logToTerminal('error', message);
+      setHint(message);
+      calTimeEl.textContent = 'Waiting for breath…';
+    }, LIVE_WATCHDOG_MS);
   }
 
   async function startLiveSdk() {
     previewPh.hidden = true;
-    hintEl.textContent = 'Warming up the camera…';
+    setHint('Warming up the camera…');
+    calTimeEl.textContent = 'Opening the camera…';
+    state.liveMetricsCount = 0;
     const SS = window.SmartSpectra;
     if (!SS || !SS.SmartSpectraSDK) {
-      hintEl.textContent = 'The SmartSpectra SDK is not available.';
-      state.mode = 'sim';
+      const why = window.SmartSpectraMissing || 'The SmartSpectra bridge was not built. Quit and start the app with "npm start".';
+      failLive(`The SmartSpectra SDK is not available. ${why}`);
+      return;
+    }
+    if (!window.__smartspectraBridge) {
+      failLive('The SmartSpectra preload bridge is missing. Quit and start the app with "npm start".');
       return;
     }
     const creds = await api.getLiveCredentials();
     if (!creds.apiKey) {
-      setStatus('No API key found in <code>.env</code>. You can keep practising without a camera.');
-      hintEl.textContent = 'No API key · stayed in practice lighting.';
-      state.mode = 'sim';
+      failLive('No API key found. Put SMARTSPECTRA_API_KEY=your_key in the .env file, then restart.');
       return;
     }
-
     const access = await api.requestCamera();
     if (!access.granted) {
-      hintEl.textContent = 'Camera access is off for this app.';
-      state.mode = 'sim';
+      failLive(`Camera access is ${access.status}. Allow it in System Settings > Privacy & Security > Camera for the app you ran npm start from (Terminal, iTerm, VS Code or Cursor), then quit and reopen that app.`);
       return;
     }
 
+    try {
+      await openLiveSession(SS, creds, liveMetrics(SS));
+    } catch (err) {
+      const unauthorized = [SS.SmartSpectraErrorCode.kMetricNotAuthorized, SS.SmartSpectraErrorCode.kConfigurationFailed];
+      if (unauthorized.includes(err && err.code)) {
+        logToTerminal('warn', 'Extra metrics were refused; retrying with breathing only.');
+        try {
+          await openLiveSession(SS, creds, [...SS.breathingMetrics]);
+          return;
+        } catch (retryErr) {
+          err = retryErr;
+        }
+      }
+      const text = cameraErrorText(err)
+        || (typeof (err && err.code) === 'number' ? sdkErrorText(SS, err.code, err.message) : null)
+        || `Couldn't start the camera session: ${err && err.message ? err.message : err}`;
+      failLive(text);
+    }
+  }
+
+  async function openLiveSession(SS, creds, requestedMetrics) {
+    if (state.sdk) {
+      const old = state.sdk;
+      state.sdk = null;
+      await old.stop().catch(() => {});
+      try { old.destroy(); } catch { /* gone */ }
+    }
     const sdk = new SS.SmartSpectraSDK({
       apiKey: creds.apiKey,
-      requestedMetrics: liveMetrics(SS),
+      requestedMetrics,
       enableTelemetry: creds.enableTelemetry === true,
     });
     state.sdk = sdk;
     sdk.on('streamAvailable', (stream) => {
-      cameraPreview.srcObject = stream;
-      cameraPreview.hidden = false;
-      cameraPreview.play().catch(() => {});
+      logToTerminal('info', 'Camera stream is open.');
+      [cameraPreview, calPreview].forEach((video) => {
+        video.srcObject = stream;
+        video.hidden = false;
+        video.play().catch(() => {});
+      });
+      calTimeEl.textContent = 'Finding your breath…';
     });
-    sdk.on('metrics', (buf) => onMetrics(SS.decodeMetrics(buf)));
-    sdk.on('validationStatus', (code, _ts, hint) => onValidation({ code, hint }));
+    sdk.on('processingStatus', (status) => {
+      logToTerminal('info', `SmartSpectra status: ${codeName(SS.ProcessingStatus, status)}`);
+    });
+    sdk.on('metrics', (buf) => {
+      if (state.sdk !== sdk) return;
+      state.liveMetricsCount += 1;
+      if (state.liveMetricsCount === 1) logToTerminal('info', 'Breath data is arriving.');
+      onMetrics(SS.decodeMetrics(buf));
+    });
+    sdk.on('validationStatus', (code, _ts, hint) => {
+      const name = codeName(SS.ValidationCode, code);
+      const text = hint || VALIDATION_TEXT[name] || '';
+      if (name !== state.lastValidationName) {
+        state.lastValidationName = name;
+        logToTerminal(code === 0 ? 'info' : 'warn', `Framing: ${name}${text ? ` (${text})` : ''}`);
+      }
+      onValidation({ code, hint: code === 0 ? '' : text });
+    });
+    sdk.on('error', (code, message) => {
+      if (state.sdk !== sdk) return;
+      failLive(sdkErrorText(SS, code, message));
+    });
+    armLiveWatchdog();
     await sdk.start();
   }
 
@@ -487,6 +643,7 @@
       liveBtn.disabled = !cameraBox.checked;
     });
     $('btn-practice').addEventListener('click', () => beginSession('sim'));
+    $('live-error').addEventListener('click', (event) => { event.currentTarget.hidden = true; });
     liveBtn.addEventListener('click', () => {
       if (!cameraBox.checked) return;
       beginSession('live');

@@ -74,6 +74,7 @@
   </div>
 
   <div id="boot-error" class="boot-error" hidden role="alert"></div>
+  <div id="live-error" class="boot-error live-error" hidden role="alert" title="Click to dismiss"></div>
 
   <div id="consent" class="overlay">
     <div class="card">
@@ -100,8 +101,10 @@
 
   <div id="calibrate" class="overlay overlay-soft" hidden>
     <div class="cal-card">
+      <video id="cal-preview" class="cal-preview" autoplay muted playsinline hidden></video>
       <p>Breathe normally, we're learning your range.</p>
       <div class="cal-time" id="cal-time">15 seconds</div>
+      <p class="cal-hint" id="cal-hint" aria-live="polite"></p>
     </div>
   </div>
 

@@ -703,3 +703,17 @@ h1 { font-size: 3rem; line-height: 1; }
   35% { transform: rotate(-4deg) scale(1.04); }
   100% { transform: rotate(0deg) scale(1); }
 }
+
+.live-error { cursor: pointer; top: 64px; }
+.cal-preview {
+  display: block;
+  width: 220px;
+  height: 124px;
+  margin: 0 auto 12px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #0a080c;
+}
+/* A mirror feels natural when you're lining yourself up. */
+#camera-preview, .cal-preview { transform: scaleX(-1); }
+.cal-hint { margin: 10px 0 0; min-height: 1.2em; color: var(--muted); font-size: 0.85rem; }

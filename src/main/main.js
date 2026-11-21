@@ -130,6 +130,11 @@ ipcMain.handle('app:requestCamera', async () => {
   return { granted, status };
 });
 
+ipcMain.on('app:log', (_event, level, message) => {
+  if (level === 'error' || level === 'warn') logError(message);
+  else log(message);
+});
+
 ipcMain.handle('app:cameraAccess', async () => {
   if (process.platform !== 'darwin' || typeof systemPreferences.getMediaAccessStatus !== 'function') {
     return { status: 'unknown' };
