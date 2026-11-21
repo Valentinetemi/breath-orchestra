@@ -115,6 +115,21 @@ ipcMain.handle('app:setConsent', async (_event, payload) => {
   return { cameraConsent, telemetryEnabled };
 });
 
+// Ask the OS up front so a denial shows up as a clear message, not a silent black preview.
+ipcMain.handle('app:requestCamera', async () => {
+  if (!cameraConsent) return { granted: false, status: 'no-consent' };
+  if (process.platform !== 'darwin') return { granted: true, status: 'not-applicable' };
+  let status = systemPreferences.getMediaAccessStatus('camera');
+  if (status === 'not-determined') {
+    const granted = await systemPreferences.askForMediaAccess('camera');
+    status = granted ? 'granted' : 'denied';
+  }
+  const granted = status === 'granted';
+  if (granted) log('macOS camera access: granted');
+  else logError(`macOS camera access: ${status}. Allow it in System Settings > Privacy & Security > Camera for the app you ran "npm start" from (Terminal, iTerm, VS Code, Cursor), then quit and reopen that app.`);
+  return { granted, status };
+});
+
 ipcMain.handle('app:cameraAccess', async () => {
   if (process.platform !== 'darwin' || typeof systemPreferences.getMediaAccessStatus !== 'function') {
     return { status: 'unknown' };

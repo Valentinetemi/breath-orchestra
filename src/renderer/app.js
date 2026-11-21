@@ -445,6 +445,13 @@
       return;
     }
 
+    const access = await api.requestCamera();
+    if (!access.granted) {
+      hintEl.textContent = 'Camera access is off for this app.';
+      state.mode = 'sim';
+      return;
+    }
+
     const sdk = new SS.SmartSpectraSDK({
       apiKey: creds.apiKey,
       requestedMetrics: liveMetrics(SS),
