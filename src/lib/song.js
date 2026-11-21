@@ -170,6 +170,59 @@
     };
   }
 
+  function guideAt(song, kind, timeMs, options = {}) {
+    const behindMs = options.behindMs ?? 1500;
+    const aheadMs = options.aheadMs ?? 3000;
+    const points = options.points ?? 90;
+    const tempo = options.tempo ?? TEMPO_BPM;
+    const target = (t) => {
+      const voice = songMixAt(song, t, tempo).voices[kind];
+      return voice && voice.active ? voice.env : null;
+    };
+    const line = [];
+    for (let i = 0; i < points; i += 1) {
+      const t = timeMs - behindMs + (i / (points - 1)) * (behindMs + aheadMs);
+      line.push(t < 0 ? null : target(t));
+    }
+    const now = target(timeMs);
+    const soon = target(timeMs + 300);
+    let cue = 'rest';
+    if (now !== null && soon !== null) {
+      const diff = soon - now;
+      cue = diff > 0.04 ? 'in' : diff < -0.04 ? 'out' : 'hold';
+    } else if (now === null && soon !== null) {
+      cue = 'ready';
+    }
+    return { now, cue, line, nowIndex: Math.round(((points - 1) * behindMs) / (behindMs + aheadMs)) };
+  }
+
+  const CHEERS = {
+    record: [
+      'Lovely. Just breathe the way that feels good.',
+      "That's your sound. Keep it easy.",
+      'Nice and slow. The band is listening.',
+    ],
+    listen: [
+      'This is your song.',
+      'Every swell here came from your breath.',
+      'Listen to them play together.',
+      'Here it comes, everyone at once.',
+    ],
+    perform: [
+      "You're playing with your own band.",
+      'Lovely, keep flowing with it.',
+      'No rush. Follow the line or make it your own.',
+      'Beautiful. The hall is all yours.',
+      'Big breath for the finish.',
+    ],
+  };
+
+  // No scores or grades: messages only rotate through the song, never judge.
+  function cheer(context, index) {
+    const list = CHEERS[context] || CHEERS.listen;
+    return list[Math.abs(Math.floor(index || 0)) % list.length];
+  }
+
   function songDurationMs(song, tempo = TEMPO_BPM) {
     return song.totalBars * msPerBar(tempo);
   }
@@ -184,6 +237,8 @@
     shapeTake,
     songMixAt,
     songDurationMs,
+    guideAt,
+    cheer,
     CADENCE_NOTES,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;

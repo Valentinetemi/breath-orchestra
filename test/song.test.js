@@ -137,3 +137,40 @@ describe('songMixAt', () => {
     assert.ok(all.density > intro.density);
   });
 });
+
+describe('guideAt', () => {
+  const rise = Array.from({ length: 200 }, (_, i) => 0.5 - 0.5 * Math.cos((i / 199) * Math.PI * 8));
+  const s = song.arrangeSong([part('cello', rise), part('flute', rise)]);
+  const bar = msPerBar();
+
+  it('says breathe in while the part is rising and out while it falls', () => {
+    const cues = new Set();
+    for (let t = 0; t < bar * 4; t += 150) cues.add(song.guideAt(s, 'cello', t).cue);
+    assert.ok(cues.has('in'));
+    assert.ok(cues.has('out'));
+  });
+
+  it('shows rest until the part comes in, then a ready cue just before', () => {
+    assert.equal(song.guideAt(s, 'flute', bar).cue, 'rest');
+    assert.equal(song.guideAt(s, 'flute', bar * 4 - 150).cue, 'ready');
+  });
+
+  it('draws a line that looks ahead and marks now', () => {
+    const g = song.guideAt(s, 'cello', bar * 2, { points: 50 });
+    assert.equal(g.line.length, 50);
+    assert.ok(g.nowIndex > 0 && g.nowIndex < 25);
+    assert.ok(g.line.some((v) => v !== null));
+  });
+});
+
+describe('cheer', () => {
+  it('only ever offers encouragement, never a score', () => {
+    for (const context of ['record', 'listen', 'perform']) {
+      for (let i = 0; i < 10; i += 1) {
+        const text = song.cheer(context, i);
+        assert.equal(typeof text, 'string');
+        assert.doesNotMatch(text, /\d|%|score|grade|accura|wrong|miss/i);
+      }
+    }
+  });
+});
