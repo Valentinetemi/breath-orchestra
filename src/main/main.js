@@ -66,6 +66,8 @@ function createWindow() {
   if (process.argv.includes('--sim')) query.sim = '1';
   const calArg = process.argv.find((arg) => arg.startsWith('--calMs='));
   if (calArg) query.calMs = calArg.slice('--calMs='.length);
+  const speedArg = process.argv.find((arg) => arg.startsWith('--songSpeed='));
+  if (speedArg) query.songSpeed = speedArg.slice('--songSpeed='.length);
   win.loadFile(path.join(__dirname, '../renderer/index.html'), { query });
 }
 
