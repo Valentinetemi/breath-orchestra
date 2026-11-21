@@ -61,4 +61,39 @@ console.log(`  envelope at 1/4 loop: ${mid.toFixed(2)}`);
 console.log(`  transport at commit: bar ${pos.bar}, beat ${pos.beat}`);
 console.log(`  seated: ${kinds}`);
 console.log(`  drums on riser: ${Boolean(drum && drum.slot.riser)}`);
+
+// Song mode: four bars per instrument from the simulator, arranged and mixed end to end.
+const { PART_BARS, RECORD_ORDER, shapeTake, arrangeSong, songMixAt, songDurationMs, guideAt } = require('../src/lib/song');
+const parts = [];
+let songClock = recStart + take.durationMs;
+for (const kind of RECORD_ORDER) {
+  const partRec = new EnvelopeRecorder();
+  partRec.start(songClock);
+  const end = songClock + msPerBar() * PART_BARS;
+  for (let t = songClock; t < end; t += 33) partRec.add(cal.addSample(sim.tick(t).value, t).envelope, t);
+  const partTake = partRec.stop(end, TEMPO_BPM);
+  parts.push({ instrument: kind, envelope: shapeTake(partTake.envelope).envelope, bars: partTake.bars });
+  songClock = end + msPerBar();
+}
+const arranged = arrangeSong(parts);
+let loudest = 0;
+for (let t = 0; t <= songDurationMs(arranged); t += 50) {
+  const mix = songMixAt(arranged, t);
+  for (const v of Object.values(mix.voices)) {
+    if (!Number.isFinite(v.env) || v.env < 0 || v.env > 1) {
+      console.error(`bad song envelope at ${t} ms`, v);
+      process.exit(1);
+    }
+    loudest = Math.max(loudest, v.env);
+  }
+}
+const cues = new Set();
+for (let t = 0; t < songDurationMs(arranged); t += 200) cues.add(guideAt(arranged, 'cello', t).cue);
+console.log(`  song: ${arranged.sections.map((x) => x.name).join(' > ')}`);
+console.log(`  song length: ${arranged.totalBars} bars (${(songDurationMs(arranged) / 1000).toFixed(1)} s), loudest ${loudest.toFixed(2)}`);
+console.log(`  cello guide cues: ${[...cues].join(', ')}`);
+if (parts.some((p) => p.bars !== PART_BARS) || !cues.has('in') || !cues.has('out')) {
+  console.error('song parts or guide looked wrong');
+  process.exit(1);
+}
 console.log('OK');
