@@ -97,6 +97,7 @@
     }
 
     renderChips(now, done) {
+      this.ui.parts.hidden = false;
       this.ui.parts.innerHTML = lib.RECORD_ORDER.map((kind) => {
         const cls = ['song-chip'];
         if (!this.chosen.includes(kind)) cls.push('is-off');
@@ -124,12 +125,15 @@
       ]);
     }
 
-    action(id) {
+    action(id, kind) {
       if (id === 'start') this.startRecording();
       else if (id === 'skip') this.skipPart();
       else if (id === 'finish') this.finishRecording();
       else if (id === 'replay') { this.performer = null; this.startListen(); }
       else if (id === 'stop') this.finishPlayback();
+      else if (id === 'pick') this.renderPick();
+      else if (id === 'perform') this.startPerform(kind);
+      else if (id === 'back') this.renderDone();
       else if (id === 'new') { this.stopAll(); this.performer = null; this.song = null; this.enter(); }
       else if (id === 'free') this.host.leave();
     }
@@ -322,7 +326,7 @@
       this.renderPlayers(this.song.order);
       this.ui.count.hidden = true;
       this.ui.guide.hidden = true;
-      this.renderChips(null, this.song.order);
+      this.ui.parts.hidden = true;
       this.setActions([
         { id: 'stop', label: 'Stop' },
         { id: 'free', label: 'Back to free play' },
@@ -380,7 +384,7 @@
         const entering = mix.section.entering;
         if (entering) this.host.setSpotlight(entering);
         const message = entering && mix.sectionIndex > 0
-          ? `The ${this.label(entering).toLowerCase()} joins in.`
+          ? `Here comes your ${this.label(entering).toLowerCase()}.`
           : lib.cheer('listen', mix.sectionIndex);
         this.setText(this.sectionTitle(mix), message, 'Your song');
       }
@@ -400,6 +404,113 @@
         if (this.phase === 'done') this.renderDone();
       });
       this.renderDone();
+    }
+
+    // ---- Perform ------------------------------------------------------------
+
+    renderPick() {
+      this.phase = 'pick';
+      this.setText('Play along', "Pick the part you'll play. Your band plays the rest, and a line shows when your part breathes in and out.");
+      this.setActions([
+        ...this.song.order.map((kind) => ({ id: 'perform', kind, label: `Play the ${this.label(kind).toLowerCase()}` })),
+        { id: 'back', label: 'Back' },
+      ]);
+    }
+
+    startPerform(kind, now = performance.now()) {
+      if (!this.song || !this.song.order.includes(kind)) return;
+      this.performer = kind;
+      this.phase = 'perform';
+      this.t0 = now;
+      this.lastSection = -1;
+      this.lastBeat = -1;
+      this.accented = false;
+      this.makeSongVoices(kind);
+      this.renderPlayers(this.song.order.filter((k) => k !== kind));
+      this.orchestra.setLiveInstrument(kind);
+      this.host.showLivePlayer(kind);
+      this.host.setSpotlight(kind);
+      this.ui.guide.hidden = false;
+      this.ui.count.hidden = false;
+      this.ui.parts.hidden = true;
+      this.setText(`You're on ${this.label(kind).toLowerCase()}`, 'Breathe along with the line. There are no wrong notes here.', 'Play along');
+      this.setActions([
+        { id: 'stop', label: 'Stop' },
+        { id: 'free', label: 'Back to free play' },
+      ]);
+      this.beginCapture();
+    }
+
+    tickPerform(now, input) {
+      // One bar of count-in before the song starts.
+      const t = this.clock(now) - this.barMs;
+      const kind = this.performer;
+      const guide = lib.guideAt(this.song, kind, t);
+      this.drawGuide(guide, input.env);
+      this.ui.cue.textContent = CUES[guide.cue] || '';
+      if (t < 0) {
+        const beat = Math.floor(((t + this.barMs) / this.barMs) * lib.BEATS_PER_BAR);
+        if (beat !== this.lastBeat && beat >= 0) {
+          this.lastBeat = beat;
+          this.ui.count.textContent = String(lib.BEATS_PER_BAR - beat);
+          this.orchestra.click(beat === 0);
+        }
+        this.playLive(0, { env: 0, phase: 'hold' }, { muted: true });
+        return;
+      }
+      this.ui.count.hidden = true;
+      const mix = this.playSong(t, kind);
+      const v = mix.voices[kind];
+      const env = v.active ? input.env * (mix.lastBar ? Math.min(1, v.env / 0.75) : 1) : 0;
+      this.playLive(t, { env, phase: input.phase }, { cadence: v.cadence, muted: v.muted, density: mix.density });
+      if (mix.sectionIndex !== this.lastSection) {
+        this.lastSection = mix.sectionIndex;
+        this.setText(this.sectionTitle(mix), lib.cheer('perform', mix.sectionIndex), `Play along · ${this.label(kind)}`);
+      }
+      if (t >= lib.songDurationMs(this.song) + this.barMs) this.finishPlayback();
+    }
+
+    drawGuide(guide, userEnv) {
+      const canvas = this.ui.canvas;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const pad = 14;
+      const y = (v) => h - pad - v * (h - pad * 2);
+      const x = (i) => (i / (guide.line.length - 1)) * w;
+      ctx.clearRect(0, 0, w, h);
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = '#e8c87a';
+      [[0, guide.nowIndex, '#e8c87a55', 0], [guide.nowIndex, guide.line.length - 1, '#e8c87a', 12]].forEach(([from, to, color, blur]) => {
+        ctx.strokeStyle = color;
+        ctx.shadowBlur = blur;
+        ctx.beginPath();
+        let drawing = false;
+        for (let i = from; i <= to; i += 1) {
+          const v = guide.line[i];
+          if (v === null) { drawing = false; continue; }
+          if (drawing) ctx.lineTo(x(i), y(v));
+          else { ctx.moveTo(x(i), y(v)); drawing = true; }
+        }
+        ctx.stroke();
+      });
+      ctx.shadowBlur = 0;
+      const nx = x(guide.nowIndex);
+      ctx.strokeStyle = '#f3ead844';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(nx, 4);
+      ctx.lineTo(nx, h - 4);
+      ctx.stroke();
+      ctx.fillStyle = '#f3ead8';
+      ctx.shadowColor = '#f3ead8';
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(nx, y(Math.min(1, Math.max(0, userEnv || 0))), 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
     }
 
     renderDone() {
@@ -422,6 +533,7 @@
     tick(now, input) {
       if (this.phase === 'countin' || this.phase === 'record') this.tickRecord(now, input);
       else if (this.phase === 'listen') this.tickListen(now);
+      else if (this.phase === 'perform') this.tickPerform(now, input);
     }
 
     snapshot() {
@@ -430,10 +542,19 @@
         current: this.current || null,
         chosen: this.chosen.slice(),
         parts: this.parts.map((p) => ({ instrument: p.instrument, length: p.envelope.length, filled: p.filled })),
+        performer: this.performer || null,
         song: this.song ? { order: this.song.order, sections: this.song.sections.map((s) => s.name), totalBars: this.song.totalBars } : null,
       };
     }
   }
+
+  const CUES = {
+    in: 'Breathe in…',
+    out: '…and out',
+    hold: 'Stay with it',
+    rest: 'Rest. Your part is coming',
+    ready: 'Get ready…',
+  };
 
   function sample(env, frac) {
     if (!env || !env.length) return 0;
