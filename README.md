@@ -96,6 +96,17 @@ skips the consent screen and opens practice mode straight away. No `.env` file i
 
 The drums keep time on the locked 72 BPM grid. In camera mode, your pulse (the rate, or a beat from the arterial-pressure trace) gently changes how busy or accented the groove is — it never speeds up or slows down the music. A deep inhale can swell the ride or crash and add a short fill. Practice mode simulates a pulse, so the kit still plays. This is only for the music. Breath Orchestra does not measure or display heart health.
 
+### Song mode
+
+Switch the stage from **Free play** to **Song** (top of the screen). It's just for fun: there are no scores, grades, or accuracy numbers anywhere.
+
+1. **Record.** Pick the parts you want (all five are on by default; tap one to leave it out) and press **Start recording**. Each instrument gets its turn on its own: “Cello, your turn.” A one-bar count-in clicks you in, then you breathe for 4 bars while the parts you've already made play underneath. Everything stays in D minor at 72 BPM and every part is exactly 4 bars. **Skip this one** or **Make my song now** whenever you like.
+2. **Listen.** Breath Orchestra arranges your parts into one song: an intro with a single part, then one new instrument joining every 4 bars, a section with everyone, and a 2-bar ending that settles on a D minor chord. Each player lights up as their part comes in. Quiet or flat takes are gently filled out so the song always sounds like music.
+3. **Play along.** Choose a part and your band plays the rest. A flowing gold line shows where your part breathes in and out (“Breathe in…”, “…and out”, “Rest. Your part is coming”), and the dot is you. Your instrument follows your breath live over the backing, with friendly messages along the way.
+4. **Save audio** downloads what you just heard, the song or your play-along, as a `.webm` file. **Play it again**, **New song**, or **Back to free play** at any time; your free-play loops wait for you.
+
+Song mode works in Practice mode too: hold **Space** (or the mouse) to breathe in.
+
 Talking, or a framing warning from the SDK, pauses an in-progress recording and writes a rest so the other parts stay on the grid. If the swell feels backwards, tick **Invert breath**.
 
 ### Lighting and framing
@@ -121,6 +132,7 @@ npm test            # unit tests for calibration, quantization, the looper, puls
 npm run test:headless
 npm run test:audio  # make sure all five instruments build an audio graph
 npm run test:e2e    # click Practice, walk through a short calibration, reach the HUD
+npm run test:e2e:song  # Song mode in Practice mode: record two parts, listen, play along
 npm run test:e2e:live  # real SDK path with a fake camera and a dummy key (expects the key to be rejected)
 npm run lint
 ```
@@ -129,7 +141,7 @@ npm run lint
 
 - The camera never starts from the consent screen.
 - Video is processed on this computer. Breath Orchestra does not store video, write recordings to disk, or send frames to another person.
-- Loop envelopes live in memory and disappear when you quit.
+- Loop envelopes and songs live in memory and disappear when you quit. Song audio is only written to disk if you press **Save audio** and choose where.
 - SmartSpectra telemetry is **off by default**. If you opt in, the SDK may send session summaries and device-readiness reports (no video and no breath or pulse values). See [Telemetry and Privacy](https://smartspectra.presagetech.com/docs/telemetry-and-privacy).
 - A live session still contacts Presage to check your API key and credits.
 

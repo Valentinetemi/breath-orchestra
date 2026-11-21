@@ -12,13 +12,15 @@ Breath Orchestra is a webcam instrument set in a little concert hall. You pick a
 
 I wanted it to work for someone who has never played an instrument, and for someone whose breath is naturally shallow or deep. Before any music starts, there is a short calibration: “Breathe normally, we're learning your range.” The app learns the 5th-to-95th percentile of your chest-movement trace, then maps that personal range to a full swell. The music itself stays locked to D minor at 72 BPM, so whatever you do, it still sounds like a piece, not a jumble of notes.
 
+There's also a **Song mode**, purely for fun. The app takes you through each instrument one at a time (“Cello, your turn: breathe for 4 bars”), then arranges your parts into a short song: an intro on one instrument, a new player joining every four bars, everyone together, and an ending that settles on D minor. It plays the song back while each player on stage lights up, then invites you to **play along**. You pick a part, your band plays the rest, and a flowing line shows when that part breathes in and out. There are no scores, no grades, just encouragement, and you can save the result as audio.
+
 <!-- TEMI: Add 2–4 sentences in your own voice about why you wanted to build this. What made a concert hall you play with your breath feel like the right idea? You can mention neuroscience or The Biology of Connection if you want, but only in your words. Replace this comment and keep the rest of the post in first person. -->
 
 It is a musical instrument, not a medical tool. It does not diagnose or treat anything.
 
 ## Demo
 
-<!-- TEMI: After you record the demo on your Mac, paste the video embed or link here. A good take walks through consent, calibration, one recorded part, a second instrument, and mute/undo. -->
+<!-- TEMI: After you record the demo on your Mac, paste the video embed or link here. A good take walks through consent, calibration, one recorded part, a second instrument, and mute/undo, then switches to Song mode: record two or three parts, listen to the arranged song, and play along with the breath guide. -->
 
 **Demo video:** _coming soon_
 
@@ -73,14 +75,14 @@ I didn’t want another dashboard of numbers, or a single pad that brightens whe
 
 Breath Orchestra is for anyone who wants to make something that sounds like music without having to know how to play, and without being scored or diagnosed. That includes a first-timer, a shallow breather, and someone who would rather practise without a camera at all.
 
-I designed it that way on purpose: consent before the camera, a calibration that adapts to the person instead of assuming a “normal” breath size, music locked to one key and one tempo, loops quantized to bars, plain-language framing help, and a practice mode that uses the same instrument as the live path. Recording pauses honestly if you talk or if the picture slips, and you can undo a part without starting over.
+I designed it that way on purpose: consent before the camera, a calibration that adapts to the person instead of assuming a “normal” breath size, music locked to one key and one tempo, loops quantized to bars, plain-language framing help, and a practice mode that uses the same instrument as the live path. Recording pauses honestly if you talk or if the picture slips, and you can undo a part without starting over. Song mode keeps the same rules: every part is four bars on the same grid, shy or flat takes are gently filled out so the song still sounds good, and play-along only ever offers encouragement. Nothing is scored.
 
 ## Consent and Data Handling
 
 - **Camera consent.** The camera stays off on launch. Nothing calls `start()` on the SDK, and Electron will not grant the camera permission, until you tick the consent box and choose **Use my camera**. Practice mode never opens the camera. Closing the window stops the session and turns the camera off.
 - **What is measured.** In camera mode, the SDK looks at the movement of your chest (and can notice talking). It can also read a pulse rate and an arterial-pressure trace. The app uses those signals only to play music: breath swells the phrase, and pulse gently shapes the drum groove on a locked tempo. It does not claim to measure health, stress, fitness, or emotion, and it does not diagnose anything.
 - **Video.** Frames are processed on your computer. Breath Orchestra does not write video to disk, does not keep a recording of your face, and does not send frames to anyone else. The optional corner preview is local only.
-- **Signals and loops.** Breath envelopes live in memory for the current session. Quit, and they are gone. There is no account, no history, and no analytics service of mine.
+- **Signals, loops, and songs.** Breath envelopes and Song mode parts live in memory for the current session. Quit, and they are gone. A song's audio is only saved if you press **Save audio** and pick where it goes; it contains music only, never video or breath values. There is no account, no history, and no analytics service of mine.
 - **SDK telemetry.** Off by default. If you opt in on the consent screen, the SmartSpectra SDK may send session summaries and device-readiness reports (SDK version, device and OS, frame-rate and validation counts, error codes — not video, and not your breath or pulse values). Those requests are authenticated to the API-key account. Details: [SDK Telemetry & Privacy](https://smartspectra.presagetech.com/docs/telemetry-and-privacy).
 - **Presage authentication and credits.** A live session still contacts Presage over TLS to validate the API key and the free-trial credit balance. This challenge runs on that free trial; if you hit a limit, the [Presage Discord](https://discord.com/invite/K7KNmuX7KT) is the official place to ask. The key itself stays in a local, gitignored `.env` file.
 - **AI services.** The app does not call SmartSpectra LLM Insights or any other AI API at runtime. No breath data is sent to a language model.
