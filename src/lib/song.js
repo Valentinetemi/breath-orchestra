@@ -1,10 +1,14 @@
 'use strict';
 
 (function (root) {
-  const lib = (typeof module !== 'undefined' && module.exports)
+  const {
+    BEATS_PER_BAR,
+    PIANO_CHORDS,
+    TEMPO_BPM,
+    msPerBar,
+  } = (typeof module !== 'undefined' && module.exports)
     ? require('./music-theory')
     : root.BreathLib;
-  void lib;
 
   const PART_BARS = 4;
   const SECTION_BARS = 4;
@@ -13,6 +17,15 @@
   // Piano or cello make the warmest openings; drums never start a song alone if anything else exists.
   const INTRO_PREFERENCE = ['piano', 'cello', 'violin', 'flute', 'drums'];
   const ENTRY_PREFERENCE = ['cello', 'piano', 'violin', 'flute'];
+
+  // Every part settles on a D minor chord tone, so the last bar always resolves.
+  const CADENCE_NOTES = {
+    cello: ['D2'],
+    flute: ['D5'],
+    violin: ['A4'],
+    piano: PIANO_CHORDS[0],
+    drums: [],
+  };
 
   const LABELS = {
     cello: 'Cello', flute: 'Flute', violin: 'Violin', piano: 'Piano', drums: 'Drums',
@@ -109,6 +122,58 @@
     return { section: song.sections[0], index: 0 };
   }
 
+  function sampleLoop(env, frac) {
+    if (!env || !env.length) return 0;
+    const pos = Math.min(0.999999, Math.max(0, frac)) * (env.length - 1);
+    const i = Math.floor(pos);
+    const f = pos - i;
+    const a = env[i];
+    const b = env[Math.min(env.length - 1, i + 1)];
+    return a + (b - a) * f;
+  }
+
+  function songMixAt(song, timeMs, tempo = TEMPO_BPM) {
+    const bar = Math.max(0, timeMs / msPerBar(tempo));
+    const done = bar >= song.totalBars;
+    const { section, index } = sectionAtBar(song, Math.min(bar, song.totalBars - 1e-6));
+    const inSection = bar - section.startBar;
+    const lastBar = Boolean(section.ending) && inSection >= section.bars - 1;
+    const voices = {};
+    song.order.forEach((kind) => {
+      const active = !done && section.active.includes(kind);
+      let env = 0;
+      if (active) {
+        env = sampleLoop(song.tracks[kind].envelope, (bar % PART_BARS) / PART_BARS);
+        if (section.entering === kind) env *= Math.min(1, inSection / 0.5);
+        // The final bar ignores the take and rings out the same way every time.
+        if (lastBar) env = 0.75 * (1 - (inSection - (section.bars - 1))) ** 1.4;
+      }
+      voices[kind] = {
+        env,
+        active,
+        muted: !active || (kind === 'drums' && lastBar),
+        cadence: lastBar ? CADENCE_NOTES[kind] : null,
+        entering: section.entering === kind,
+      };
+    });
+    const intensity = section.active.length / song.order.length;
+    return {
+      bar,
+      totalBeats: bar * BEATS_PER_BAR,
+      done,
+      section,
+      sectionIndex: index,
+      lastBar,
+      density: 0.35 + 0.4 * intensity,
+      progress: Math.min(1, bar / song.totalBars),
+      voices,
+    };
+  }
+
+  function songDurationMs(song, tempo = TEMPO_BPM) {
+    return song.totalBars * msPerBar(tempo);
+  }
+
   const exported = {
     PART_BARS,
     SECTION_BARS,
@@ -117,6 +182,9 @@
     arrangeSong,
     sectionAtBar,
     shapeTake,
+    songMixAt,
+    songDurationMs,
+    CADENCE_NOTES,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;
   root.BreathLib = Object.assign(root.BreathLib || {}, exported);
