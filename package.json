@@ -16,7 +16,8 @@
     "test:audio": "node test/audio-graph.js",
     "build": "node scripts/build-sdk.js",
     "test:e2e:live": "npm run build && node test/e2e-live.js",
-    "doctor": "node scripts/doctor.js"
+    "doctor": "node scripts/doctor.js",
+    "test:e2e:song": "node test/e2e-song.js"
   },
   "engines": {
     "node": ">=20"
