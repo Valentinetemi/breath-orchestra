@@ -92,6 +92,13 @@ async function main() {
     await waitFor(async () => (await song(cdp)).phase === 'done', 30000, 'song to finish');
     const done = await panel(cdp);
     console.log(`e2e song: done - "${done.title}" actions ${done.actions.join(', ')}`);
+    const audio = await waitFor(async () => {
+      const s = await song(cdp);
+      return s.audioBytes > 0 ? s : null;
+    }, 8000, 'captured song audio');
+    const saveEnabled = await cdp.eval("!document.querySelector('[data-song-action=\"save\"]').disabled");
+    if (!saveEnabled) throw new Error('Save audio should be enabled once the song is captured');
+    console.log(`e2e song: captured ${audio.audioBytes} bytes of ${audio.audioType}`);
 
     await click(cdp, '[data-song-action="pick"]');
     const pick = await panel(cdp);

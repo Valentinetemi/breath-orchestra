@@ -134,7 +134,8 @@
       else if (id === 'pick') this.renderPick();
       else if (id === 'perform') this.startPerform(kind);
       else if (id === 'back') this.renderDone();
-      else if (id === 'new') { this.stopAll(); this.performer = null; this.song = null; this.enter(); }
+      else if (id === 'save') this.saveAudio();
+      else if (id === 'new') { this.stopAll(); this.performer = null; this.song = null; this.lastBlob = null; this.enter(); }
       else if (id === 'free') this.host.leave();
     }
 
@@ -398,9 +399,13 @@
       this.orchestra.silenceLive();
       this.ui.guide.hidden = true;
       this.setProgress(1);
+      const name = this.performer ? `breath-orchestra-play-along-${this.performer}.webm` : 'breath-orchestra-song.webm';
       this.orchestra.stopCapture().then((blob) => {
         this.pendingBlob = blob;
-        if (blob) this.lastBlob = blob;
+        if (blob) {
+          this.lastBlob = blob;
+          this.lastBlobName = name;
+        }
         if (this.phase === 'done') this.renderDone();
       });
       this.renderDone();
@@ -525,9 +530,23 @@
       this.setActions([
         { id: 'replay', label: 'Play it again' },
         { id: 'pick', label: 'Play along', primary: true },
+        { id: 'save', label: 'Save audio', disabled: !this.lastBlob },
         { id: 'new', label: 'New song' },
         { id: 'free', label: 'Back to free play' },
       ]);
+    }
+
+    saveAudio() {
+      const blob = this.lastBlob;
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = this.lastBlobName || 'breath-orchestra-song.webm';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
     }
 
     tick(now, input) {
@@ -543,6 +562,8 @@
         chosen: this.chosen.slice(),
         parts: this.parts.map((p) => ({ instrument: p.instrument, length: p.envelope.length, filled: p.filled })),
         performer: this.performer || null,
+        audioBytes: this.lastBlob ? this.lastBlob.size : 0,
+        audioType: this.lastBlob ? this.lastBlob.type : null,
         song: this.song ? { order: this.song.order, sections: this.song.sections.map((s) => s.name), totalBars: this.song.totalBars } : null,
       };
     }
