@@ -24,7 +24,7 @@ cd breath-orchestra
 npm install
 ```
 
-The SmartSpectra SDK is an optional dependency. If `npm install` prints a warning about it, Practice mode will still run.
+The SmartSpectra SDK is an optional dependency. If `npm install` prints a warning about it, Practice mode will still run. `npm run doctor` tells you whether the SDK and its native runtime actually installed.
 
 ### Camera sessions
 
@@ -47,9 +47,28 @@ SMARTSPECTRA_API_KEY=your_key_here
 npm start
 ```
 
+`npm start` first bundles the SDK's Electron bridge into `dist/` (the window runs sandboxed, so it can't load `node_modules` directly), then opens the app. Run `npm start` rather than `electron .`.
+
 On first launch, macOS will ask for camera permission. Breath Orchestra declares `NSCameraUsageDescription` in its bundle info: the camera is used to read the movement of your chest as you breathe, and video never leaves this computer.
 
 If the camera track appears “live” but stays black, check which app actually launched Electron — macOS attaches the permission to the parent app (Terminal, Cursor, etc.). Grant camera access to that app in **System Settings → Privacy & Security → Camera**, then restart.
+
+### If the camera won't start
+
+```bash
+npm run doctor
+```
+
+It checks Node and Electron, whether `@smartspectra/node-sdk` and its native runtime for your machine are installed and load, whether `.env` has a key (it never prints it), and the macOS camera permission. The app also explains failures on screen and in the terminal, with lines starting `[breath-orchestra]`:
+
+| Message | Fix |
+| --- | --- |
+| SmartSpectra SDK is not available | `npm install`, then `npm start` |
+| preload bridge is missing | Start with `npm start`, not `electron .` |
+| No API key found | Put `SMARTSPECTRA_API_KEY=...` in `.env` and restart |
+| API key was rejected | Check the key in `.env`: no quotes, no spaces |
+| Camera access is denied | Allow the camera for your terminal app in System Settings, then quit and reopen it |
+| No breath data after 10 seconds | Follow the framing hint: face and upper chest in view, good light, camera still |
 
 ### Practice without a camera
 
@@ -95,12 +114,14 @@ The small preview in the corner shows the SDK’s own framing hints when you use
 ## Scripts
 
 ```bash
-npm start           # build nothing extra; open the Electron app
+npm start           # bundle the SDK bridge, then open the Electron app
 npm run start:sim   # skip consent and start practice without a camera
+npm run doctor      # check the SDK, the key, and camera access
 npm test            # unit tests for calibration, quantization, the looper, pulse, and drums
 npm run test:headless
 npm run test:audio  # make sure all five instruments build an audio graph
 npm run test:e2e    # click Practice, walk through a short calibration, reach the HUD
+npm run test:e2e:live  # real SDK path with a fake camera and a dummy key (expects the key to be rejected)
 npm run lint
 ```
 

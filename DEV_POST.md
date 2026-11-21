@@ -57,7 +57,7 @@ Breath is still the main gesture, and the music itself never leaves D minor at 7
 
 On the consent screen you can choose **Practice without a camera**. That path never opens the camera and never spends SDK credits. It feeds a synthetic breath waveform, and a simulated pulse, into the same calibrator, looper, and instruments, and you can also drive the breath with the keyboard or mouse.
 
-For a live session the Electron main process creates a `SmartSpectraSDK` from `@smartspectra/node-sdk` only after camera consent, with `enableTelemetry` off unless you opted in. It requests the breathing bundle plus talking, uses the default camera, and forwards decoded metrics and validation events to the renderer over IPC. The API key is read from a gitignored `.env` and is never written into the repo or the UI.
+For a live session I follow Presage's Electron sample: the main process calls `bindSmartSpectraIpc`, the preload loads the SDK bridge, and the renderer creates a `SmartSpectraSDK` from `@smartspectra/node-sdk/renderer` only after camera consent, with `enableTelemetry` off unless you opted in. The SDK opens the camera through Electron's permission handler (camera only, only for the app's own page), and on macOS the app asks for camera access first. It requests the breathing bundle plus talking and pulse, and each `breathing.upperTrace` sample goes straight into the calibrator. If anything goes wrong (missing SDK, rejected key, camera denied, or no breath data after 10 seconds) the app says so on screen and drops into Practice mode rather than faking it. The API key is read from a gitignored `.env` and is never written into the repo or the UI.
 
 ## Prize Categories
 
