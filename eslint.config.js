@@ -4,7 +4,7 @@ const js = { ecmaVersion: 2022, sourceType: 'script' };
 
 module.exports = [
   {
-    files: ['src/**/*.js', 'test/**/*.js'],
+    files: ['src/**/*.js', 'test/**/*.js', 'scripts/**/*.js'],
     languageOptions: {
       ...js,
       globals: {

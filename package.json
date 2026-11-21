@@ -7,13 +7,14 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "electron .",
-    "start:sim": "electron . --sim",
+    "start": "npm run build && electron .",
+    "start:sim": "npm run build && electron . --sim",
     "test": "node --test test/*.test.js",
     "test:headless": "node test/sim-headless.js",
-    "lint": "eslint src test",
+    "lint": "eslint src test scripts",
     "test:e2e": "node test/e2e-practice.js",
-    "test:audio": "node test/audio-graph.js"
+    "test:audio": "node test/audio-graph.js",
+    "build": "node scripts/build-sdk.js"
   },
   "engines": {
     "node": ">=20"
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "electron": "^33.2.1",
+    "esbuild": "^0.25.12",
     "eslint": "^9.15.0"
   },
   "build": {
