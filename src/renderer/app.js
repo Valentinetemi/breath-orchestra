@@ -313,12 +313,9 @@
   }
 
   function tick(now) {
-    let raw = state.lastLiveValue;
-    if (state.mode === 'sim' || raw === null) {
-      const sample = state.simulator.tick(now);
-      raw = sample.value;
-    }
-    if (state.calibrator) {
+    // In live mode, wait for real breath rather than quietly playing the simulator.
+    const raw = state.mode === 'live' ? state.lastLiveValue : state.simulator.tick(now).value;
+    if (state.calibrator && raw !== null) {
       const cal = state.calibrator.addSample(raw, now);
       state.envelope = cal.envelope;
       state.phase = cal.phase;
