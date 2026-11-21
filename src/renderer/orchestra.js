@@ -359,6 +359,43 @@
       this._click.triggerAttackRelease(accent ? 'A4' : 'D4', '32n', undefined, accent ? 0.7 : 0.4);
     }
 
+    // Taps the master bus so a song can be saved exactly as it was heard.
+    startCapture() {
+      if (!this.started || typeof MediaRecorder === 'undefined') return false;
+      try {
+        if (!this._captureDest) {
+          this._captureDest = ToneRef.getContext().rawContext.createMediaStreamDestination();
+          this.master.connect(this._captureDest);
+        }
+        const mime = ['audio/webm;codecs=opus', 'audio/webm']
+          .find((type) => MediaRecorder.isTypeSupported(type)) || '';
+        this._chunks = [];
+        this._recorder = new MediaRecorder(this._captureDest.stream, mime ? { mimeType: mime } : undefined);
+        this._recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size) this._chunks.push(event.data);
+        };
+        this._recorder.start(250);
+        return true;
+      } catch (err) {
+        console.warn('Audio capture is unavailable:', err && err.message);
+        this._recorder = null;
+        return false;
+      }
+    }
+
+    stopCapture() {
+      const recorder = this._recorder;
+      this._recorder = null;
+      if (!recorder || recorder.state === 'inactive') return Promise.resolve(null);
+      return new Promise((resolve) => {
+        recorder.onstop = () => {
+          const type = recorder.mimeType || 'audio/webm';
+          resolve(this._chunks.length ? new Blob(this._chunks, { type }) : null);
+        };
+        recorder.stop();
+      });
+    }
+
     removeLayer(id) {
       const entry = this.layers.get(id);
       if (!entry) return;

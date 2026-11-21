@@ -36,6 +36,10 @@ module.exports = [
         fetch: 'readonly',
         WebSocket: 'readonly',
         URL: 'readonly',
+        MediaRecorder: 'readonly',
+        Blob: 'readonly',
+        Event: 'readonly',
+        KeyboardEvent: 'readonly',
       },
     },
     rules: {
