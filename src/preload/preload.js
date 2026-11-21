@@ -1,14 +1,12 @@
 'use strict';
 
-// Official SmartSpectra Electron apps keep sandbox: true and require this
-// from an existing preload. If the SDK is missing or throws, practice mode
-// must still get the app bridge below.
+// npm start bundles this file into dist/preload.js so the SDK bridge loads under the sandbox.
 const { contextBridge, ipcRenderer } = require('electron');
 
 try {
   require('@smartspectra/node-sdk/preload');
 } catch {
-  // Live camera mode can still start the SDK from the main process.
+  // Unbundled or SDK missing: Practice mode still gets the bridge below.
 }
 
 contextBridge.exposeInMainWorld('breathOrchestra', {

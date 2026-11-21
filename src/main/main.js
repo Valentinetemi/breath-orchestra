@@ -1,6 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow, ipcMain, session, systemPreferences } = require('electron');
+const fs = require('fs');
 const path = require('path');
 
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
@@ -20,6 +21,12 @@ let telemetryEnabled = false;
 let sdkSession = null;
 let mainWindow = null;
 
+// The bundled preload carries the SDK bridge; the plain one is enough for Practice mode.
+function preloadPath() {
+  const bundled = path.join(__dirname, '../../dist/preload.js');
+  return fs.existsSync(bundled) ? bundled : path.join(__dirname, '../preload/preload.js');
+}
+
 function createWindow() {
   const win = mainWindow = new BrowserWindow({
     width: 1440,
@@ -30,7 +37,7 @@ function createWindow() {
     title: 'Breath Orchestra',
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/preload.js'),
+      preload: preloadPath(),
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
